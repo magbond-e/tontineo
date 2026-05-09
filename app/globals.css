@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: theme('colors.background');
+  color: theme('colors.textPrimary');
+}
+
+/* Custom scrollbar to look premium */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: theme('colors.border');
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.textSecondary');
+}
+
+/* Custom utility for the glass effect or premium borders if needed */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid theme('colors.border');
+}
