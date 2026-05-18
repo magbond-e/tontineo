@@ -17,7 +17,8 @@ export default function CreateCerclePage() {
     maxMembers: "10",
     drawType: "Aléatoire IA",
     penalty: "1000",
-    coverEmoji: "💰"
+    coverEmoji: "💰",
+    joinAsMember: true
   });
   const [isCreated, setIsCreated] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -65,17 +66,19 @@ export default function CreateCerclePage() {
       return;
     }
 
-    const { error: memberError } = await supabase
-      .from('memberships')
-      .insert({
-        circle_id: circleData.id,
-        user_id: user.id,
-        role: 'co-organizer',
-        status: 'active'
-      });
+    if (formData.joinAsMember) {
+      const { error: memberError } = await supabase
+        .from('memberships')
+        .insert({
+          circle_id: circleData.id,
+          user_id: user.id,
+          role: 'co-organizer',
+          status: 'active'
+        });
 
-    if (memberError) {
-      console.error("Error joining memberships:", memberError);
+      if (memberError) {
+        console.error("Error joining memberships:", memberError);
+      }
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "https://tontineo.app");
@@ -201,6 +204,25 @@ export default function CreateCerclePage() {
                       rows={3}
                       className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800/80 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-textPrimary resize-none"
                     />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-4 cursor-pointer p-4 bg-gray-50 dark:bg-slate-800/80 border border-border rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-slate-700">
+                      <div className="relative flex items-center justify-center">
+                        <input 
+                          type="checkbox" 
+                          name="joinAsMember" 
+                          checked={formData.joinAsMember} 
+                          onChange={(e) => setFormData({...formData, joinAsMember: e.target.checked})}
+                          className="peer appearance-none w-6 h-6 border-2 border-border rounded-lg checked:bg-primary checked:border-primary transition-all cursor-pointer bg-white"
+                        />
+                        <Check size={16} strokeWidth={3} className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="block text-sm font-bold text-textPrimary">Je participe en tant que membre</span>
+                        <span className="block text-xs text-textSecondary mt-0.5">Si décoché, vous serez uniquement organisateur et ne cotiserez pas au pot.</span>
+                      </div>
+                    </label>
                   </div>
                 </div>
               )}

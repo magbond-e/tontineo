@@ -94,6 +94,41 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
     }
   };
 
+  // Nouveau useEffect pour simuler le webhook FedaPay (Mode local uniquement)
+  useEffect(() => {
+    if (typeof window !== "undefined" && user && activeCycle && cercle) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success') {
+        const simulateWebhook = async () => {
+          try {
+            await fetch('/api/payments/webhook', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: 'transaction.approved',
+                entity: {
+                  id: Math.floor(Math.random() * 100000000), // Faux ID de transaction
+                  amount: cercle.amount,
+                  status: 'approved',
+                  metadata: {
+                    circle_id: cercle.id,
+                    cycle_id: activeCycle.id,
+                    user_id: user.id
+                  }
+                }
+              })
+            });
+            alert("🎉 Paiement de test FedaPay validé !\n\nLe Simulateur Local a intercepté le retour et vient d'incrémenter votre pot de " + cercle.amount + " FCFA dans la base de données !");
+            window.location.href = `/cercles/${cercle.id}`; // Recharge pour voir le nouveau pot
+          } catch (err) {
+            console.error("Simulation webhook failed", err);
+          }
+        };
+        simulateWebhook();
+      }
+    }
+  }, [user, activeCycle, cercle]);
+
   useEffect(() => {
     const fetchCercleDetails = async () => {
       if (!user) return;
