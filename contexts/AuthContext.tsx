@@ -24,6 +24,12 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileData, setProfileData] = useState<{
+    name: string;
+    email: string;
+    avatarUrl: string;
+    whatsapp: string;
+  } | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -52,13 +58,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase.auth]);
 
-  // Derive user profile from metadata
-  const userProfile = user ? {
+  useEffect(() => {
+    if (!user) {
+      setProfileData(null);
+      return;
+    }
+
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url, whatsapp")
+        .eq("id", user.id)
+        .single();
+      
+      if (data) {
+        setProfileData({
+          name: data.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur",
+          email: user.email || "",
+          avatarUrl: data.avatar_url || user.user_metadata?.avatar_url || "",
+          whatsapp: data.whatsapp || user.user_metadata?.whatsapp || "",
+        });
+      } else {
+        setProfileData({
+          name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur",
+          email: user.email || "",
+          avatarUrl: user.user_metadata?.avatar_url || "",
+          whatsapp: user.user_metadata?.whatsapp || "",
+        });
+      }
+    };
+
+    fetchProfile();
+
+    // Subscribe to profile changes
+    const channel = supabase
+      .channel(`profile_changes_${user.id}`)
+      .on(
+        "postgres_changes", 
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, 
+        (payload) => {
+          const updated = payload.new as any;
+          setProfileData({
+            name: updated.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur",
+            email: user.email || "",
+            avatarUrl: updated.avatar_url || user.user_metadata?.avatar_url || "",
+            whatsapp: updated.whatsapp || user.user_metadata?.whatsapp || "",
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase]);
+
+  const userProfile = profileData || (user ? {
     name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur",
     email: user.email || "",
     avatarUrl: user.user_metadata?.avatar_url || "",
     whatsapp: user.user_metadata?.whatsapp || "",
-  } : null;
+  } : null);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, userProfile }}>

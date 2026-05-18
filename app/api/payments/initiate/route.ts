@@ -33,10 +33,8 @@ export async function POST(req: Request) {
       callback_url: `${appUrl}/cercles/${circle_id}?payment=success`,
       customer: {
         email: user.email || 'user@tontineo.com',
-        phone_number: {
-          number: phone || '',
-          country: 'bj'
-        }
+        firstname: 'Membre',
+        lastname: 'Tontineo'
       },
       custom_metadata: {
         circle_id,

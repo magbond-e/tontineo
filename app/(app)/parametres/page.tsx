@@ -5,11 +5,12 @@ import { useTheme } from "next-themes";
 import { User, ShieldCheck, Bell, Crown, Settings, UploadCloud, CheckCircle2, AlertCircle, Camera, FileText, Check, Smartphone, Mail, MessageSquare, Moon, Sun, Globe, Loader2, Save, Lock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { createClient } from "@/utils/supabase/client";
 
 export default function ParametresPage() {
   const { theme, setTheme } = useTheme();
   const { lang, setLang, t } = useLanguage();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("profil");
   const [docType, setDocType] = useState("cip");
@@ -22,6 +23,7 @@ export default function ParametresPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   // WhatsApp Logic
   const [showWaModal, setShowWaModal] = useState(false);
@@ -31,42 +33,57 @@ export default function ParametresPage() {
 
   // Toggles
   const [waEnabled, setWaEnabled] = useState(true);
+  const [waReminders, setWaReminders] = useState(true);
+  const [waDraws, setWaDraws] = useState(true);
+  const [waInvites, setWaInvites] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(true);
 
   // Plan logic
   const [userPlan, setUserPlan] = useState("free");
 
+  // Security State
+  const [pinCode, setPinCode] = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
+  const [isPinSaving, setIsPinSaving] = useState(false);
+  const [pinSuccess, setPinSuccess] = useState("");
+  const [pinError, setPinError] = useState("");
+
+  const supabase = createClient();
+
   useEffect(() => {
     setMounted(true);
 
-    if (userProfile) {
-      setName(userProfile.name);
-      setEmail(userProfile.email);
-      if (userProfile.whatsapp) {
-        setWaNumber(userProfile.whatsapp);
-        setWaInput(userProfile.whatsapp);
-      }
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab) setActiveTab(tab);
     }
 
-    const savedData = localStorage.getItem("tontineo_profile");
-    if (savedData) {
-      try {
-        const data = JSON.parse(savedData);
-        if (data.name) setName(data.name);
-        if (data.city) setCity(data.city);
-        if (data.email) setEmail(data.email);
-        if (data.momo) setMomo(data.momo);
-        if (data.waNumber) {
-          setWaNumber(data.waNumber);
-          setWaInput(data.waNumber);
+    const fetchProfile = async () => {
+      if (user?.id) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (profile) {
+          setName(profile.full_name || userProfile?.name || "");
+          setCity(profile.city || "");
+          setEmail(user?.email || "");
+          setMomo(profile.phone || "");
+          if (profile.whatsapp) {
+            setWaNumber(profile.whatsapp);
+            setWaInput(profile.whatsapp);
+          }
+          if (profile.current_plan) setUserPlan(profile.current_plan);
+          if (profile.wa_enabled !== null) setWaEnabled(profile.wa_enabled);
+          if (profile.wa_reminders_enabled !== null) setWaReminders(profile.wa_reminders_enabled);
+          if (profile.wa_draws_enabled !== null) setWaDraws(profile.wa_draws_enabled);
+          if (profile.wa_invites_enabled !== null) setWaInvites(profile.wa_invites_enabled);
+          if (profile.sms_enabled !== null) setSmsEnabled(profile.sms_enabled);
+          if (profile.email_enabled !== null) setEmailEnabled(profile.email_enabled);
         }
-        if (data.waEnabled !== undefined) setWaEnabled(data.waEnabled);
-        if (data.smsEnabled !== undefined) setSmsEnabled(data.smsEnabled);
-        if (data.emailEnabled !== undefined) setEmailEnabled(data.emailEnabled);
-      } catch(e) {}
-    }
-  }, []);
+      }
+    };
+    fetchProfile();
+  }, [user, userProfile, supabase]);
 
   const handleSaveProfile = () => {
     if (waInput !== waNumber) {
@@ -77,25 +94,68 @@ export default function ParametresPage() {
     executeSave(waInput);
   };
 
-  const executeSave = (finalWaNum: string) => {
+  const executeSave = async (finalWaNum: string) => {
     setIsSaving(true);
     setSavedSuccess(false);
+    setSaveError("");
     
-    // Save to localStorage
-    const dataToSave = {
-      name, city, email, momo, waNumber: finalWaNum, lang, waEnabled, smsEnabled, emailEnabled
-    };
-    localStorage.setItem("tontineo_profile", JSON.stringify(dataToSave));
+    if (user?.id) {
+      const { error } = await supabase.from('profiles').update({
+        full_name: name,
+        city: city,
+        phone: momo,
+        whatsapp: finalWaNum,
+        wa_enabled: waEnabled,
+        sms_enabled: smsEnabled,
+        email_enabled: emailEnabled
+      }).eq('id', user.id);
 
-    setTimeout(() => {
       setIsSaving(false);
-      setSavedSuccess(true);
-      if (pendingWaNumber) {
-        setWaNumber(pendingWaNumber);
-        setPendingWaNumber("");
+
+      if (error) {
+        setSaveError("Une erreur est survenue lors de la sauvegarde : " + error.message);
+      } else {
+        setSavedSuccess(true);
+        if (pendingWaNumber) {
+          setWaNumber(pendingWaNumber);
+          setPendingWaNumber("");
+        }
+        setTimeout(() => setSavedSuccess(false), 3000);
       }
-      setTimeout(() => setSavedSuccess(false), 3000);
-    }, 1500);
+    } else {
+      setIsSaving(false);
+      setSaveError("Utilisateur non connecté.");
+    }
+  };
+
+  const handleSavePin = async () => {
+    if (pinCode.length !== 4 && pinCode.length !== 6) {
+      setPinError("Le code PIN doit faire 4 ou 6 chiffres.");
+      return;
+    }
+    if (pinCode !== pinConfirm) {
+      setPinError("Les codes PIN ne correspondent pas.");
+      return;
+    }
+    if (!user?.id) return;
+
+    setIsPinSaving(true);
+    setPinError("");
+    
+    const { error } = await supabase.from('profiles').update({
+      pin_code: pinCode
+    }).eq('id', user.id);
+
+    setIsPinSaving(false);
+
+    if (error) {
+      setPinError("Erreur lors de la sauvegarde du PIN.");
+    } else {
+      setPinSuccess("Code PIN sauvegardé avec succès !");
+      setPinCode("");
+      setPinConfirm("");
+      setTimeout(() => setPinSuccess(""), 4000);
+    }
   };
 
   const confirmWaChange = () => {
@@ -103,29 +163,41 @@ export default function ParametresPage() {
     executeSave(pendingWaNumber);
   };
 
-  const toggleSms = () => {
+  const toggleSms = async () => {
     if (userPlan === "free") return; // Premium locked
     const nextState = !smsEnabled;
     setSmsEnabled(nextState);
-    const data = JSON.parse(localStorage.getItem("tontineo_profile") || "{}");
-    data.smsEnabled = nextState;
-    localStorage.setItem("tontineo_profile", JSON.stringify(data));
+    if (user?.id) await supabase.from('profiles').update({ sms_enabled: nextState }).eq('id', user.id);
   };
 
-  const toggleWa = () => {
+  const toggleWa = async () => {
     const nextState = !waEnabled;
     setWaEnabled(nextState);
-    const data = JSON.parse(localStorage.getItem("tontineo_profile") || "{}");
-    data.waEnabled = nextState;
-    localStorage.setItem("tontineo_profile", JSON.stringify(data));
+    if (user?.id) await supabase.from('profiles').update({ wa_enabled: nextState }).eq('id', user.id);
   };
   
-  const toggleEmail = () => {
+  const toggleEmail = async () => {
     const nextState = !emailEnabled;
     setEmailEnabled(nextState);
-    const data = JSON.parse(localStorage.getItem("tontineo_profile") || "{}");
-    data.emailEnabled = nextState;
-    localStorage.setItem("tontineo_profile", JSON.stringify(data));
+    if (user?.id) await supabase.from('profiles').update({ email_enabled: nextState }).eq('id', user.id);
+  };
+
+  const toggleWaReminders = async () => {
+    const nextState = !waReminders;
+    setWaReminders(nextState);
+    if (user?.id) await supabase.from('profiles').update({ wa_reminders_enabled: nextState }).eq('id', user.id);
+  };
+
+  const toggleWaDraws = async () => {
+    const nextState = !waDraws;
+    setWaDraws(nextState);
+    if (user?.id) await supabase.from('profiles').update({ wa_draws_enabled: nextState }).eq('id', user.id);
+  };
+
+  const toggleWaInvites = async () => {
+    const nextState = !waInvites;
+    setWaInvites(nextState);
+    if (user?.id) await supabase.from('profiles').update({ wa_invites_enabled: nextState }).eq('id', user.id);
   };
 
   const changeLanguage = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -137,6 +209,7 @@ export default function ParametresPage() {
 
   const tabs = [
     { id: "profil", label: t("tab_profile"), icon: User },
+    { id: "securite", label: "Sécurité", icon: Lock },
     { id: "kyc", label: t("tab_kyc"), icon: ShieldCheck },
     { id: "notifications", label: t("tab_notif"), icon: Bell },
     { id: "abonnement", label: t("tab_plan"), icon: Crown },
@@ -169,13 +242,14 @@ export default function ParametresPage() {
         </div>
       )}
 
-      <div>
-        <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">{t("settings_title")}</h1>
-        <p className="text-textSecondary mt-1">{t("settings_subtitle")}</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">{t("settings_title")}</h1>
+          <p className="text-textSecondary mt-1">{t("settings_subtitle")}</p>
+        </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex overflow-x-auto hide-scrollbar border-b border-border">
+      <div className="flex border-b border-border overflow-x-auto scrollbar-hide bg-surface rounded-t-3xl shadow-sm">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -197,7 +271,7 @@ export default function ParametresPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-sm min-h-[500px]">
+      <div className="bg-surface border border-border rounded-b-3xl p-5 md:p-8 shadow-sm min-h-[500px]">
         
         {/* --- ONGLET PROFIL --- */}
         {activeTab === "profil" && (
@@ -240,12 +314,13 @@ export default function ParametresPage() {
                     <input 
                       type="tel" 
                       value={waInput} 
-                      onChange={(e) => setWaInput(e.target.value)}
+                      onChange={(e)=>setWaInput(e.target.value)} 
+                      placeholder="+229XXXXXXXX"
                       className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium text-textPrimary" 
                     />
                   </div>
                 </div>
-                <div className="p-5 bg-primary/5 border border-primary/20 rounded-xl mt-4">
+                <div>
                   <label className="block text-sm font-bold text-primary mb-1.5">{t("momo_num")}</label>
                   <p className="text-xs text-textSecondary mb-3">{t("momo_desc")}</p>
                   <input type="tel" value={momo} onChange={(e)=>setMomo(e.target.value)} className="w-full max-w-md px-4 py-2.5 bg-surface dark:bg-slate-800 border border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium text-textPrimary shadow-sm" />
@@ -254,6 +329,11 @@ export default function ParametresPage() {
             </div>
             
             <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-end gap-4">
+              {saveError && (
+                <span className="text-danger text-sm font-bold flex items-center gap-2 animate-in shake">
+                  <AlertCircle size={18} /> {saveError}
+                </span>
+              )}
               {savedSuccess && (
                 <span className="text-success text-sm font-bold flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
                   <CheckCircle2 size={18} /> {t("saved_success")}
@@ -267,6 +347,95 @@ export default function ParametresPage() {
                 {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 {isSaving ? t("saving_btn") : t("save_btn")}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* --- ONGLET SECURITE --- */}
+        {activeTab === "securite" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+              
+              {/* Formulaire */}
+              <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-sm space-y-5">
+                <h2 className="text-xl font-bold text-textPrimary">Sécurité du compte</h2>
+                <p className="text-xs text-textSecondary -mt-3">Configurez votre code secret pour sécuriser toutes vos opérations financières.</p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">Nouveau code PIN (4 ou 6 chiffres)</label>
+                    <input 
+                      type="password" 
+                      maxLength={6}
+                      value={pinCode} 
+                      onChange={(e) => setPinCode(e.target.value)}
+                      placeholder="••••"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-xl font-bold text-textPrimary tracking-[0.5em] text-center font-mono" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">Confirmer le code PIN</label>
+                    <input 
+                      type="password" 
+                      maxLength={6}
+                      value={pinConfirm} 
+                      onChange={(e) => setPinConfirm(e.target.value)}
+                      placeholder="••••"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-xl font-bold text-textPrimary tracking-[0.5em] text-center font-mono" 
+                    />
+                  </div>
+
+                  {pinError && <p className="text-danger text-sm font-bold text-center animate-in shake">{pinError}</p>}
+                  {pinSuccess && <p className="text-success text-sm font-bold text-center animate-in fade-in">{pinSuccess}</p>}
+
+                  <button 
+                    onClick={handleSavePin}
+                    disabled={isPinSaving || !pinCode || !pinConfirm}
+                    className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
+                  >
+                    {isPinSaving ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
+                    {isPinSaving ? "Enregistrement..." : "Enregistrer le PIN"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Tips & Info */}
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-slate-800/40 dark:to-slate-800/20 border border-border rounded-2xl p-6 flex flex-col justify-between min-h-[340px] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                
+                <div>
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 shadow-sm">
+                    <ShieldCheck size={26} />
+                  </div>
+                  <h3 className="font-bold text-textPrimary mb-2">Pourquoi un code PIN ?</h3>
+                  <p className="text-sm text-textSecondary leading-relaxed mb-4">
+                    Le code PIN de sécurité de Tontineo garantit que vous seul pouvez autoriser les actions sensibles de votre portefeuille :
+                  </p>
+                  
+                  <ul className="space-y-2.5">
+                    <li className="flex items-start gap-2.5 text-xs text-textSecondary">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></span>
+                      <span>Validation obligatoire de tous les retraits Momo.</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-xs text-textSecondary">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></span>
+                      <span>Sécurisation de vos transferts entre membres.</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-xs text-textSecondary">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></span>
+                      <span>Protection contre l'accès non autorisé à vos fonds.</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div className="mt-6 p-3 bg-white dark:bg-slate-800 border border-border rounded-xl flex items-start gap-2.5">
+                  <span className="text-lg">💡</span>
+                  <p className="text-[11px] text-textSecondary leading-normal">
+                    <strong>Conseil :</strong> Évitez les combinaisons simples (ex: 1234 ou 0000). Ne partagez jamais votre code secret.
+                  </p>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -343,7 +512,7 @@ export default function ParametresPage() {
 
         {/* --- ONGLET NOTIFICATIONS --- */}
         {activeTab === "notifications" && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-3xl">
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
             <h2 className="text-xl font-bold text-textPrimary mb-6">{t("notif_title")}</h2>
             
             <div className="grid grid-cols-1 gap-6">
@@ -365,15 +534,15 @@ export default function ParametresPage() {
                 </div>
                 <div className={`space-y-3 pl-14 transition-opacity ${waEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary" />
+                    <input type="checkbox" checked={waReminders} onChange={toggleWaReminders} className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" />
                     <span className="text-sm font-medium text-textPrimary">{t("wa_opt1")}</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary" />
+                    <input type="checkbox" checked={waDraws} onChange={toggleWaDraws} className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" />
                     <span className="text-sm font-medium text-textPrimary">{t("wa_opt2")}</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary" />
+                    <input type="checkbox" checked={waInvites} onChange={toggleWaInvites} className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" />
                     <span className="text-sm font-medium text-textPrimary">{t("wa_opt3")}</span>
                   </label>
                 </div>
@@ -445,8 +614,8 @@ export default function ParametresPage() {
                   <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Jusqu'à 10 membres</div>
                   <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Frais de retrait normaux (2%)</div>
                 </div>
-                <button className="w-full py-2.5 bg-gray-100 dark:bg-slate-800 text-textSecondary font-bold rounded-xl cursor-default">
-                  {t("current_plan")}
+                <button className={`w-full py-2.5 font-bold rounded-xl transition-all ${userPlan === 'free' ? 'bg-gray-100 dark:bg-slate-800 text-textSecondary cursor-default' : 'bg-surface border border-border text-textPrimary hover:bg-gray-50'}`}>
+                  {userPlan === 'free' ? t("current_plan") : "Passer à Essential"}
                 </button>
               </div>
 
@@ -466,8 +635,8 @@ export default function ParametresPage() {
                   <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Frais de retrait réduits (1.5%)</div>
                   <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Relances auto WhatsApp & SMS</div>
                 </div>
-                <button className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:-translate-y-0.5">
-                  {t("upgrade_pro")}
+                <button className={`w-full py-2.5 font-bold rounded-xl shadow-md transition-all ${userPlan === 'pro' ? 'bg-primary/20 text-primary cursor-default' : 'bg-primary hover:bg-primary/90 text-white shadow-primary/20 hover:-translate-y-0.5'}`}>
+                  {userPlan === 'pro' ? t("current_plan") : t("upgrade_pro")}
                 </button>
               </div>
 
@@ -484,8 +653,8 @@ export default function ParametresPage() {
                   <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Tableau de bord avancé</div>
                   <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Support prioritaire H24</div>
                 </div>
-                <button className="w-full py-2.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-border text-textPrimary font-bold rounded-xl transition-all">
-                  {t("upgrade_biz")}
+                <button className={`w-full py-2.5 font-bold rounded-xl transition-all ${userPlan === 'business' ? 'bg-gray-100 dark:bg-slate-800 text-textSecondary cursor-default' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-border text-textPrimary'}`}>
+                  {userPlan === 'business' ? t("current_plan") : t("upgrade_biz")}
                 </button>
               </div>
             </div>
@@ -494,7 +663,7 @@ export default function ParametresPage() {
 
         {/* --- ONGLET PRÉFÉRENCES --- */}
         {activeTab === "preferences" && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-2xl">
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
             <h2 className="text-xl font-bold text-textPrimary mb-6">{t("pref_title")}</h2>
             
             <div className="space-y-6">

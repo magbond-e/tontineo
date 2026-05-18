@@ -4,13 +4,91 @@ import { useEffect, useState } from "react";
 import { ShieldCheck, Award, TrendingUp, CheckCircle2, AlertCircle, Info, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { createClient } from "@/utils/supabase/client";
 
 export default function ConfiancePage() {
   const { t } = useLanguage();
+  const supabase = createClient();
   const [score, setScore] = useState(0);
-  const targetScore = 72;
+  const [targetScore, setTargetScore] = useState(0);
+  const [history, setHistory] = useState<any[]>([]);
+  const [showBadgesModal, setShowBadgesModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
+    const fetchTrustData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase.from('profiles').select('trust_score').eq('id', user.id).single();
+      
+      const { data: events } = await supabase.from('trust_events').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('*, cycles(circles(name))')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false });
+
+      // Si l'utilisateur a vidé sa base de données (0 paiement et 0 événement de confiance),
+      // réinitialiser silencieusement son score de confiance à 50 en BDD
+      const hasEvents = events && events.length > 0;
+      const hasPayments = payments && payments.length > 0;
+
+      if (!hasEvents && !hasPayments) {
+        if (profile && profile.trust_score !== 50) {
+          await supabase.from('profiles').update({ trust_score: 50 }).eq('id', user.id);
+        }
+        setTargetScore(50);
+      } else if (profile) {
+        setTargetScore(Math.min(100, profile.trust_score || 50));
+      }
+
+      let mappedHistory: any[] = [];
+      if (hasEvents) {
+        // Dédoublonnage strict
+        const seen = new Set();
+        const uniqueEvents = events.filter(ev => {
+          const key = `${ev.user_id}_${ev.circle_id}_${ev.points}_${new Date(ev.created_at).getTime()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        mappedHistory = uniqueEvents.map(ev => ({
+          id: ev.id,
+          action: ev.description || ev.event_type,
+          date: new Date(ev.created_at).toLocaleDateString('fr-FR'),
+          points: ev.points > 0 ? `+${ev.points}` : ev.points,
+          type: ev.points > 0 ? 'positive' : 'negative'
+        }));
+      } else if (hasPayments) {
+        // Dédoublonnage strict
+        const seen = new Set();
+        const uniquePayments = payments.filter(p => {
+          const key = `${p.user_id}_${p.cycle_id}_${p.amount}_${new Date(p.completed_at).getTime()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        mappedHistory = uniquePayments.map(p => ({
+          id: p.id,
+          action: `Paiement réussi - ${p.cycles?.circles?.name || 'Tontine'}`,
+          date: new Date(p.completed_at || p.created_at).toLocaleDateString('fr-FR'),
+          points: '+5',
+          type: 'positive'
+        }));
+      }
+      setHistory(mappedHistory);
+    };
+    fetchTrustData();
+  }, [supabase]);
+
+  useEffect(() => {
+    if (targetScore === 0) return;
+    
     // Animation du compteur
     const duration = 1500;
     const steps = 60;
@@ -34,7 +112,7 @@ export default function ConfiancePage() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
-  const history: any[] = [];
+
 
   return (
     <div className="max-w-[1000px] mx-auto min-h-[80vh] space-y-8">
@@ -77,6 +155,13 @@ export default function ConfiancePage() {
           
           <h2 className="text-xl font-bold text-textPrimary mb-1">Nouveau Profil</h2>
           <p className="text-sm text-textSecondary max-w-[200px]">Participez à des tontines pour améliorer votre score.</p>
+          
+          <button 
+            onClick={() => setShowBadgesModal(true)} 
+            className="mt-6 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+          >
+            🏆 Voir mes badges
+          </button>
         </div>
 
         {/* Benefits & Comparison */}
@@ -129,72 +214,123 @@ export default function ConfiancePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        {/* Badges */}
-        <div className="bg-surface border border-border rounded-3xl p-6 shadow-sm">
-          <h3 className="font-bold text-textPrimary mb-6 flex items-center gap-2">
-            <Award size={20} className="text-primary" /> Badges Débloqués
-          </h3>
-          
-          <div className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col items-center text-center opacity-40 grayscale">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
-                <span className="text-2xl">⚡</span>
-              </div>
-              <p className="text-xs font-bold text-textPrimary leading-tight">Payeur<br/>Ponctuel</p>
+      {/* Historique d'impact en pleine largeur avec pagination */}
+      <div className="bg-surface border border-border rounded-3xl p-6 md:p-8 shadow-sm flex flex-col mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-bold text-textPrimary">Historique des impacts</h3>
+        </div>
+        
+        <div className="flex-1 space-y-4">
+          {history.length === 0 ? (
+            <div className="py-8 text-center text-textSecondary text-sm bg-gray-50 dark:bg-slate-800 rounded-xl">
+              Aucun historique disponible pour le moment.
             </div>
-            
-            <div className="flex flex-col items-center text-center opacity-40 grayscale">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
-                <span className="text-2xl">👑</span>
+          ) : (
+            history.slice((currentPage - 1) * 10, currentPage * 10).map((item) => (
+              <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                <div className="flex flex-col gap-1 pr-4 min-w-0">
+                  <p className="text-sm font-bold text-textPrimary truncate">{item.action}</p>
+                  <p className="text-xs text-textSecondary">{item.date}</p>
+                </div>
+                <div className={`font-mono font-bold text-sm px-2 py-1 rounded-md shrink-0 whitespace-nowrap ${item.type === 'positive' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+                  {item.points} pts
+                </div>
               </div>
-              <p className="text-xs font-bold text-textPrimary leading-tight">Organisateur<br/>Pro</p>
-            </div>
-
-            <div className="flex flex-col items-center text-center opacity-40 grayscale">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
-                <span className="text-2xl">❤️</span>
-              </div>
-              <p className="text-xs font-bold text-textPrimary leading-tight">Membre<br/>Fidèle</p>
-            </div>
-          </div>
+            ))
+          )}
         </div>
 
-        {/* Historique d'impact */}
-        <div className="bg-surface border border-border rounded-3xl p-6 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-textPrimary">Historique des impacts</h3>
-            <button className="text-primary text-xs font-bold hover:underline">Voir tout</button>
+        {history.length > 10 && (
+          <div className="flex items-center justify-between mt-6 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-border">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 text-sm font-bold bg-white dark:bg-slate-800 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors text-textPrimary border border-border"
+            >
+              Précédent
+            </button>
+            <span className="text-sm font-bold text-textSecondary">
+              Page {currentPage} sur {Math.ceil(history.length / 10)}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(history.length / 10), prev + 1))}
+              disabled={currentPage === Math.ceil(history.length / 10)}
+              className="px-4 py-2 text-sm font-bold bg-primary hover:bg-primary/95 text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-colors"
+            >
+              Suivant
+            </button>
           </div>
-          
-          <div className="flex-1 space-y-4">
-            {history.length === 0 ? (
-              <div className="py-8 text-center text-textSecondary text-sm bg-gray-50 dark:bg-slate-800 rounded-xl">
-                Aucun historique disponible pour le moment.
-              </div>
-            ) : (
-              history.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
-                  <div className="flex flex-col gap-1 pr-4 min-w-0">
-                    <p className="text-sm font-bold text-textPrimary truncate">{item.action}</p>
-                    <p className="text-xs text-textSecondary">{item.date}</p>
-                  </div>
-                  <div className={`font-mono font-bold text-sm px-2 py-1 rounded-md shrink-0 whitespace-nowrap ${item.type === 'positive' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-                    {item.points} pts
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        )}
 
-          <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-3">
-            <Info size={16} className="text-primary mt-0.5 shrink-0" />
-            <p className="text-xs text-textSecondary leading-relaxed">
-              Le score de confiance est calculé automatiquement. Les retards diminuent fortement votre score.
-            </p>
-          </div>
+        <div className="mt-6 p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-3">
+          <Info size={16} className="text-primary mt-0.5 shrink-0" />
+          <p className="text-xs text-textSecondary leading-relaxed">
+            Le score de confiance est calculé automatiquement. Les retards diminuent fortement votre score.
+          </p>
         </div>
       </div>
+
+      {/* Modal interactif des badges */}
+      {showBadgesModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-textPrimary">🏆 Vos Badges</h3>
+              <button 
+                onClick={() => setShowBadgesModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center font-bold text-textSecondary hover:text-textPrimary"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${score >= 70 ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">
+                  ⚡
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
+                    Payeur Ponctuel {score >= 70 && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
+                  </h4>
+                  <p className="text-xs text-textSecondary">Obtenu en payant vos cotisations d'affilée sans aucun retard.</p>
+                </div>
+              </div>
+
+              <div className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${score >= 80 ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">
+                  👑
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
+                    Organisateur Pro {score >= 80 && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
+                  </h4>
+                  <p className="text-xs text-textSecondary">Obtenu en créant une tontine active et en gérant ses cycles sans encombre.</p>
+                </div>
+              </div>
+
+              <div className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${score >= 50 ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">
+                  ❤️
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
+                    Membre Fidèle {score >= 50 && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
+                  </h4>
+                  <p className="text-xs text-textSecondary">Obtenu dès l'inscription et la participation au premier cycle de tontine.</p>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowBadgesModal(false)}
+              className="w-full mt-6 py-3 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

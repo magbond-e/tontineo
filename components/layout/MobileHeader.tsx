@@ -10,14 +10,54 @@ import { useAuth } from "@/contexts/AuthContext";
 export function MobileHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { userProfile } = useAuth();
 
   const supabase = createClient();
 
-  const notifications: any[] = [];
+  // Load and listen for notifications in real-time
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (data) {
+        setNotifications(data.map(n => ({
+          id: n.id,
+          title: n.title,
+          desc: n.description,
+          unread: n.unread,
+          time: new Date(n.created_at).toLocaleDateString('fr-FR') + ' ' + new Date(n.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        })));
+      }
+    };
+
+    fetchNotifications();
+
+    const channel = supabase
+      .channel('realtime_mobile_notifications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
+  // Click outside dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
@@ -28,18 +68,65 @@ export function MobileHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const markAllAsRead = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from('notifications')
+      .update({ unread: false })
+      .eq('user_id', user.id);
+  };
+
+  const triggerLogoutModal = () => {
+    setIsMenuOpen(false);
+    setShowLogoutModal(true);
+  };
+
   const handleLogout = async () => {
-    // Basic logout logic for mobile menu
-    if (window.confirm("Êtes-vous sûr de vouloir vous déconnecter ?")) {
-      await supabase.auth.signOut();
-      localStorage.removeItem("tontineo_profile");
-      router.push("/login");
-      router.refresh();
-    }
+    setIsLoggingOut(true);
+    await supabase.auth.signOut();
+    localStorage.removeItem("tontineo_profile");
+    router.push("/login");
+    router.refresh();
   };
 
   return (
     <>
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-3xl border border-border shadow-2xl p-8 max-w-sm w-full animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-danger/10 text-danger rounded-full flex items-center justify-center mb-6 mx-auto">
+              <LogOut size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-textPrimary text-center mb-3">Déconnexion</h3>
+            <p className="text-textSecondary text-center text-sm mb-8">
+              Êtes-vous sûr de vouloir vous déconnecter de Tontineo ?
+            </p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowLogoutModal(false)}
+                disabled={isLoggingOut}
+                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-textPrimary font-bold rounded-xl transition-colors disabled:opacity-50 text-sm"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex-1 py-3 bg-danger hover:bg-danger/90 text-white font-bold rounded-xl transition-all shadow-md shadow-danger/20 disabled:opacity-50 flex justify-center items-center text-sm"
+              >
+                {isLoggingOut ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  "Confirmer"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="md:hidden flex items-center justify-between p-4 bg-surface border-b border-border sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <button 
@@ -61,13 +148,16 @@ export function MobileHeader() {
               className="relative text-textSecondary hover:text-textPrimary transition-colors mt-1"
             >
               <Bell size={20} />
+              {notifications.some(n => n.unread) && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-danger animate-pulse"></span>
+              )}
             </button>
 
             {/* Notifications Dropdown for Mobile */}
             {showNotifications && (
               <div className="absolute right-0 mt-4 w-[300px] bg-surface border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                 <div className="p-4 border-b border-border flex justify-between items-center bg-gray-50 dark:bg-slate-800">
-                  <h3 className="font-bold text-textPrimary">Notifications</h3>
+                  <h3 className="font-bold text-textPrimary text-sm">Notifications</h3>
                 </div>
                 <div className="max-h-[60vh] overflow-y-auto">
                   {notifications.length === 0 ? (
@@ -78,24 +168,27 @@ export function MobileHeader() {
                     notifications.map((notif) => (
                       <div key={notif.id} className={`p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${notif.unread ? 'bg-primary/5' : ''}`}>
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className={`text-sm ${notif.unread ? 'font-bold text-textPrimary' : 'font-medium text-textSecondary'}`}>{notif.title}</h4>
-                          <span className="text-[10px] font-bold text-textSecondary">{notif.time}</span>
+                          <h4 className={`text-xs ${notif.unread ? 'font-bold text-textPrimary' : 'font-medium text-textSecondary'}`}>{notif.title}</h4>
+                          <span className="text-[9px] font-bold text-textSecondary">{notif.time}</span>
                         </div>
-                        <p className="text-xs text-textSecondary line-clamp-2">{notif.desc}</p>
+                        <p className="text-[11px] text-textSecondary line-clamp-2 leading-relaxed">{notif.desc}</p>
                       </div>
                     ))
                   )}
                 </div>
-                {notifications.length > 0 && (
-                  <div className="p-3 text-center bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                    <span className="text-xs font-bold text-primary">Marquer tout lu</span>
+                {notifications.some(n => n.unread) && (
+                  <div 
+                    onClick={markAllAsRead}
+                    className="p-3 text-center bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer text-xs font-bold text-primary"
+                  >
+                    Marquer tout comme lu
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="w-8 h-8 rounded-full bg-textPrimary flex items-center justify-center text-surface text-xs font-bold shadow-sm uppercase">
+          <div className="w-8 h-8 rounded-full bg-textPrimary flex items-center justify-center text-surface text-xs font-bold shadow-sm uppercase shrink-0">
             {userProfile ? userProfile.name.substring(0, 2) : "UT"}
           </div>
         </div>
@@ -122,10 +215,11 @@ export function MobileHeader() {
             </div>
             
             <nav className="flex-1 py-4 px-4 space-y-1 overflow-y-auto">
-              <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-between px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
-                <div className="flex items-center gap-3">
-                  <LayoutDashboard size={20} /> Dashboard
-                </div>
+              <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
+                <LayoutDashboard size={20} /> Dashboard
+              </Link>
+              <Link href="/dashboard/member" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
+                <Users size={20} /> Espace membre
               </Link>
               <Link href="/cercles" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
                 <Users size={20} /> Mes cercles
@@ -141,8 +235,8 @@ export function MobileHeader() {
               </Link>
 
               <button 
-                onClick={handleLogout} 
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-danger hover:bg-danger/10 transition-all mt-8"
+                onClick={triggerLogoutModal} 
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-danger hover:bg-danger/10 transition-all mt-8 text-left"
               >
                 <LogOut size={20} className="text-danger" /> <span className="text-danger">Déconnexion</span>
               </button>
@@ -151,10 +245,10 @@ export function MobileHeader() {
             <div className="p-4 mt-auto border-t border-border">
               <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-slate-800 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-textPrimary flex items-center justify-center text-surface font-bold shadow-sm uppercase">
+                  <div className="w-10 h-10 rounded-full bg-textPrimary flex items-center justify-center text-surface font-bold shadow-sm uppercase shrink-0">
                     {userProfile ? userProfile.name.substring(0, 2) : "UT"}
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col overflow-hidden">
                     <span className="text-sm font-bold text-textPrimary truncate max-w-[140px]">{userProfile ? userProfile.name : "Utilisateur"}</span>
                     <span className="text-xs text-textSecondary font-medium truncate max-w-[140px]">{userProfile ? userProfile.email : "Nouveau membre"}</span>
                   </div>

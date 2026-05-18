@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Users, Coins, Percent, Bell, ArrowUpRight, ArrowDownRight, CheckCircle2, AlertCircle, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { createClient } from '@/utils/supabase/client';
 
 export default function DashboardPage() {
   const { t } = useLanguage();
@@ -11,27 +12,171 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const [selectedTx, setSelectedTx] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const supabase = createClient();
 
-  // Mock Data
+  const [statsData, setStatsData] = useState({
+    totalCotise: 0,
+    cerclesActifs: 0,
+    totalMembers: 0,
+    punctuality: 0
+  });
+  const [transactions, setTransactions] = useState<any[]>([]);
+
   const stats = [
-    { label: t("dash_total_contributed"), value: "0 FCFA", trend: "-", icon: Coins, color: "text-primary", bg: "bg-primaryLight", trendDown: false },
-    { label: t("dash_active_circles"), value: "0", trend: "-", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: false },
-    { label: t("dash_members"), value: "0", trend: "-", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: false },
-    { label: t("dash_punctuality"), value: "-", trend: "-", trendDown: false, icon: Percent, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("dash_total_contributed"), value: `${statsData.totalCotise.toLocaleString('fr-FR')} FCFA`, trend: "En hausse", icon: Coins, color: "text-primary", bg: "bg-primaryLight", trendDown: false },
+    { label: t("dash_active_circles"), value: statsData.cerclesActifs.toString(), trend: "Nouveau", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: false },
+    { label: t("dash_members"), value: statsData.totalMembers.toString(), trend: "Actifs", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: false },
+    { label: t("dash_punctuality"), value: statsData.punctuality > 0 ? `${statsData.punctuality}%` : `- %`, trend: statsData.punctuality > 0 ? "Excellent" : "Aucun paiement", trendDown: statsData.punctuality === 0, icon: Percent, color: "text-primary", bg: "bg-primary/10" },
   ];
 
-  // Empty states for transactions
-  const transactions: any[] = [];
-
-  const notifications: any[] = [];
-
+  // Fetch Dashboard Stats and Data
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchDashboardData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
+        // Fetch User's Payments with their cycle endDate to compute punctuality
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('*, circles(name), cycles(end_date)')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .order('completed_at', { ascending: false });
+
+        let totalCotise = 0;
+        let mappedTxs: any[] = [];
+        let punctuality = 0;
+
+        if (payments && payments.length > 0) {
+          totalCotise = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+          
+          // Dédoublonnage d'affichage
+          const seen = new Set();
+          const uniquePayments = payments.filter(p => {
+            const key = `${p.user_id}_${p.cycle_id}_${p.amount}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          mappedTxs = uniquePayments.slice(0, 5).map(p => ({
+            id: p.fedapay_transaction_id || p.id.toString(),
+            title: `Cotisation - ${p.circles?.name || 'Cercle'}`,
+            user: "Vous",
+            date: new Date(p.completed_at).toLocaleDateString('fr-FR'),
+            time: new Date(p.completed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+            amount: `${Number(p.amount).toLocaleString('fr-FR')} FCFA`,
+            type: 'in',
+            status: 'Payée'
+          }));
+
+          // Compute punctuality based on payment complete time vs cycle end date
+          let onTimeCount = 0;
+          payments.forEach(p => {
+            if (p.completed_at && p.cycles?.end_date) {
+              const compDate = new Date(p.completed_at);
+              const limitDate = new Date(p.cycles.end_date);
+              if (compDate <= limitDate) {
+                onTimeCount++;
+              }
+            } else {
+              onTimeCount++; // Fallback
+            }
+          });
+          punctuality = Math.round((onTimeCount / payments.length) * 100);
+        }
+
+        // Fetch User's Memberships
+        const { data: memberships } = await supabase
+          .from('memberships')
+          .select('circle_id, circles(status, current_members)')
+          .eq('user_id', user.id);
+
+        let activeCirclesCount = 0;
+        let totalCoMembers = 0;
+
+        if (memberships) {
+          const circleIds = (memberships as any[]).map((m: any) => m.circle_id);
+          
+          (memberships as any[]).forEach((m: any) => {
+            if (m.circles && m.circles.status === 'En cours') {
+              activeCirclesCount++;
+            }
+          });
+
+          // Fetch unique physical members
+          if (circleIds.length > 0) {
+            const { data: allCircleMembers } = await supabase
+              .from('memberships')
+              .select('user_id')
+              .in('circle_id', circleIds);
+
+            if (allCircleMembers) {
+              const uniqueUserIds = new Set(allCircleMembers.map(m => m.user_id));
+              totalCoMembers = uniqueUserIds.size;
+            }
+          }
+        }
+
+        setStatsData({
+          totalCotise,
+          cerclesActifs: activeCirclesCount,
+          totalMembers: totalCoMembers,
+          punctuality
+        });
+        
+        setTransactions(mappedTxs);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error fetching dashboard data", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [supabase]);
+
+  // Load and listen for notifications in real-time
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (data) {
+        setNotifications(data.map(n => ({
+          id: n.id,
+          title: n.title,
+          desc: n.description,
+          unread: n.unread,
+          time: new Date(n.created_at).toLocaleDateString('fr-FR') + ' ' + new Date(n.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        })));
+      }
+    };
+
+    fetchNotifications();
+
+    const channel = supabase
+      .channel('realtime_dashboard_bell_notifications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
+  // Handle click outside notification dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
@@ -41,6 +186,15 @@ export default function DashboardPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const markAllAsRead = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from('notifications')
+      .update({ unread: false })
+      .eq('user_id', user.id);
+  };
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 relative">
@@ -67,7 +221,7 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center py-3 border-b border-border">
                 <span className="text-sm text-textSecondary">Référence</span>
-                <span className="text-sm font-bold text-textPrimary">{selectedTx.id}</span>
+                <span className="text-sm font-bold text-textPrimary font-mono text-xs">{selectedTx.id}</span>
               </div>
               <div className="flex justify-between items-center py-3 border-b border-border">
                 <span className="text-sm text-textSecondary">Membre</span>
@@ -94,16 +248,19 @@ export default function DashboardPage() {
           <div className="relative hidden md:block" ref={notifRef}>
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
-              className="w-11 h-11 bg-surface border border-border rounded-full flex items-center justify-center text-textSecondary hover:text-primary transition-colors shadow-sm relative"
+              className="w-11 h-11 bg-surface border border-border rounded-full flex items-center justify-center text-textSecondary hover:text-primary transition-colors shadow-sm relative mt-1"
             >
               <Bell size={20} />
+              {notifications.some(n => n.unread) && (
+                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-danger animate-pulse"></span>
+              )}
             </button>
             
             {/* Notifications Dropdown */}
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 bg-surface border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                 <div className="p-4 border-b border-border flex justify-between items-center bg-gray-50 dark:bg-slate-800">
-                  <h3 className="font-bold text-textPrimary">Notifications</h3>
+                  <h3 className="font-bold text-textPrimary text-sm">Notifications</h3>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
@@ -114,17 +271,20 @@ export default function DashboardPage() {
                     notifications.map((notif) => (
                       <div key={notif.id} className={`p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${notif.unread ? 'bg-primary/5' : ''}`}>
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className={`text-sm ${notif.unread ? 'font-bold text-textPrimary' : 'font-medium text-textSecondary'}`}>{notif.title}</h4>
-                          <span className="text-[10px] font-bold text-textSecondary">{notif.time}</span>
+                          <h4 className={`text-xs ${notif.unread ? 'font-bold text-textPrimary' : 'font-medium text-textSecondary'}`}>{notif.title}</h4>
+                          <span className="text-[9px] font-bold text-textSecondary">{notif.time}</span>
                         </div>
-                        <p className="text-xs text-textSecondary line-clamp-2">{notif.desc}</p>
+                        <p className="text-[11px] text-textSecondary line-clamp-2 leading-relaxed">{notif.desc}</p>
                       </div>
                     ))
                   )}
                 </div>
-                {notifications.length > 0 && (
-                  <div className="p-3 text-center border-t border-border bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                    <span className="text-xs font-bold text-primary">Marquer tout comme lu</span>
+                {notifications.some(n => n.unread) && (
+                  <div 
+                    onClick={markAllAsRead}
+                    className="p-3 text-center border-t border-border bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer text-xs font-bold text-primary"
+                  >
+                    Marquer tout comme lu
                   </div>
                 )}
               </div>
@@ -160,12 +320,12 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-textPrimary mb-2 group-hover:text-white transition-colors">{stat.value}</p>
-                  <div className="flex items-center gap-2">
-                    <div className={`flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-md transition-colors ${stat.trendDown ? 'bg-danger/10 text-danger group-hover:bg-white/20 group-hover:text-white' : 'bg-success/10 text-success group-hover:bg-white/20 group-hover:text-white'}`}>
+                  <p className="text-2xl font-bold text-textPrimary mb-2 group-hover:text-white transition-colors truncate" title={stat.value}>{stat.value}</p>
+                  <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
+                    <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors shrink-0 ${stat.trendDown ? 'bg-danger/10 text-danger group-hover:bg-white/20 group-hover:text-white' : 'bg-success/10 text-success group-hover:bg-white/20 group-hover:text-white'}`}>
                       {stat.trend}
                     </div>
-                    <span className="text-xs text-textSecondary group-hover:text-primaryLight transition-colors">depuis le mois dernier</span>
+                    <span className="text-[10px] text-textSecondary group-hover:text-primaryLight transition-colors truncate">depuis le mois dernier</span>
                   </div>
                 </div>
               </>

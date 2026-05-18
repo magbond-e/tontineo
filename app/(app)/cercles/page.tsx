@@ -32,25 +32,37 @@ export default function CerclesPage() {
       
       const { data, error } = await supabase
         .from('circles')
-        .select('*')
+        .select('*, cycles(id, status, pot_amount, payments(amount, status))')
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error("Error fetching cercles:", error);
       } else if (data) {
-        const mappedCercles = data.map(c => ({
-          id: c.id,
-          name: c.name,
-          status: c.status,
-          membersCount: c.current_members || 1,
-          membersMax: c.max_members,
-          potStatus: c.pot_collected || 0,
-          potTarget: c.pot_target || 0,
-          nextPayment: "En attente",
-          amount: `${c.amount.toLocaleString('fr-FR')} FCFA`,
-          isOrganizer: c.organizer_id === user.id,
-          image: c.icon_emoji || "💰"
-        }));
+        const mappedCercles = data.map(c => {
+          const activeCycle = c.cycles?.find((cy: any) => cy.status === 'active');
+          let currentPot = 0;
+          
+          if (activeCycle && activeCycle.payments) {
+            // Calculer dynamiquement le pot en additionnant les paiements validés
+            currentPot = activeCycle.payments
+              .filter((p: any) => p.status === 'completed')
+              .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+          }
+
+          return {
+            id: c.id,
+            name: c.name,
+            status: c.status,
+            membersCount: c.current_members || 1,
+            membersMax: c.max_members,
+            potStatus: currentPot,
+            potTarget: c.pot_target || 1, // éviter division par 0
+            nextPayment: "En attente",
+            amount: `${c.amount.toLocaleString('fr-FR')} FCFA`,
+            isOrganizer: c.organizer_id === user.id,
+            image: c.icon_emoji || "💰"
+          };
+        });
         setCercles(mappedCercles);
       }
       setIsLoading(false);

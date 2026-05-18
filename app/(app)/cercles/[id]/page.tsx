@@ -16,6 +16,10 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   const [isCopied, setIsCopied] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [hasPaidCurrentCycle, setHasPaidCurrentCycle] = useState(false);
+  const [hasFiredWebhook, setHasFiredWebhook] = useState(false);
 
   const { user } = useAuth();
   const supabase = createClient();
@@ -43,7 +47,15 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setDate(startDate.getDate() + 30); 
+    
+    // Calcul de la durée exacte du cycle selon la fréquence
+    let durationDays = 30;
+    if (cercle?.frequency === 'Journalier') durationDays = 1;
+    else if (cercle?.frequency === 'Hebdomadaire') durationDays = 7;
+    else if (cercle?.frequency === 'Mensuel') durationDays = 30;
+    else if (cercle?.frequency === 'Annuel') durationDays = 365;
+
+    endDate.setDate(startDate.getDate() + durationDays); 
 
     const { error: cycleError } = await supabase
       .from('cycles')
@@ -60,6 +72,11 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
       window.location.reload();
     }
     setIsStarting(false);
+  };
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    window.location.reload();
   };
 
   const handlePayment = async () => {
@@ -96,9 +113,10 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
   // Nouveau useEffect pour simuler le webhook FedaPay (Mode local uniquement)
   useEffect(() => {
-    if (typeof window !== "undefined" && user && activeCycle && cercle) {
+    if (typeof window !== "undefined" && user && activeCycle && cercle && !hasFiredWebhook) {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('payment') === 'success') {
+        setHasFiredWebhook(true);
         const simulateWebhook = async () => {
           try {
             await fetch('/api/payments/webhook', {
@@ -107,7 +125,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
               body: JSON.stringify({
                 name: 'transaction.approved',
                 entity: {
-                  id: Math.floor(Math.random() * 100000000), // Faux ID de transaction
+                  id: `sim_${user.id}_${activeCycle.id}`, // Faux ID de transaction déterministe pour éviter les doublons
                   amount: cercle.amount,
                   status: 'approved',
                   metadata: {
@@ -118,8 +136,9 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                 }
               })
             });
-            alert("🎉 Paiement de test FedaPay validé !\n\nLe Simulateur Local a intercepté le retour et vient d'incrémenter votre pot de " + cercle.amount + " FCFA dans la base de données !");
-            window.location.href = `/cercles/${cercle.id}`; // Recharge pour voir le nouveau pot
+            setSuccessMessage(`🎉 Paiement de test validé !\n\nLe Simulateur a intercepté le retour de FedaPay et a incrémenté le pot de ${cercle.amount} FCFA dans votre base de données.`);
+            setShowSuccessModal(true);
+            window.history.replaceState(null, '', window.location.pathname);
           } catch (err) {
             console.error("Simulation webhook failed", err);
           }
@@ -127,7 +146,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         simulateWebhook();
       }
     }
-  }, [user, activeCycle, cercle]);
+  }, [user, activeCycle, cercle, hasFiredWebhook]);
 
   useEffect(() => {
     const fetchCercleDetails = async () => {
@@ -145,24 +164,6 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         return;
       }
       
-      setCercle({
-        ...circleData,
-        description: circleData.description || "Aucune description",
-        amount: circleData.amount,
-        frequency: circleData.frequency,
-        maxMembers: circleData.max_members,
-        currentMembers: circleData.current_members || 1,
-        status: circleData.status,
-        potTarget: circleData.pot_target,
-        potCollected: circleData.pot_collected,
-        nextPaymentDate: "En attente",
-        penalty: circleData.late_penalty_pct,
-        drawType: circleData.draw_type,
-        isOrganizer: circleData.organizer_id === user.id,
-        isMember: true,
-        image: circleData.icon_emoji || "💰"
-      });
-
       // Fetch active cycle
       const { data: cycleData } = await supabase
         .from('cycles')
@@ -175,11 +176,45 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         
       if (cycleData) {
         setActiveCycle(cycleData);
-        setCercle((prev: any) => ({
-          ...prev,
-          potCollected: cycleData.pot_amount
-        }));
       }
+
+      let nextPaymentDate = "En attente";
+      let daysRemainingText = "Aucun tirage en cours";
+
+      if (cycleData) {
+        const endDate = new Date(cycleData.end_date);
+        const today = new Date();
+        const diffTime = endDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        nextPaymentDate = endDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+        if (diffDays > 0) {
+          daysRemainingText = `Dans ${diffDays} ${diffDays === 1 ? 'jour' : 'jours'}`;
+        } else if (diffDays === 0) {
+          daysRemainingText = "Aujourd'hui !";
+        } else {
+          daysRemainingText = `En retard de ${Math.abs(diffDays)} ${Math.abs(diffDays) === 1 ? 'jour' : 'jours'}`;
+        }
+      }
+
+      setCercle({
+        ...circleData,
+        description: circleData.description || "Aucune description",
+        amount: circleData.amount,
+        frequency: circleData.frequency,
+        maxMembers: circleData.max_members,
+        currentMembers: circleData.current_members || 1,
+        status: circleData.status,
+        potTarget: circleData.pot_target,
+        potCollected: circleData.pot_collected,
+        nextPaymentDate,
+        daysRemainingText,
+        penalty: circleData.late_penalty_pct,
+        drawType: circleData.draw_type,
+        isOrganizer: circleData.organizer_id === user.id,
+        isMember: false, // Sera mis à jour après la vérification des memberships
+        image: circleData.icon_emoji || "💰"
+      });
 
       // Fetch members with profile data
       const { data: membershipsData } = await supabase
@@ -188,15 +223,51 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         .eq('circle_id', params.id);
         
       if (membershipsData) {
-        const mappedMembers = membershipsData.map(m => ({
-          id: m.id,
-          name: m.profiles?.full_name || "Utilisateur",
-          role: m.role === 'co-organizer' ? 'Organisateur' : 'Membre',
-          status: 'En attente', // Par défaut
-          date: "-",
-          avatar: m.profiles?.full_name ? m.profiles.full_name.substring(0, 2).toUpperCase() : "UT",
-          trustScore: m.profiles?.trust_score || 50
+        const isUserMember = membershipsData.some(m => m.user_id === user.id);
+
+        // Fetch payments for the current cycle to map status & sum the pot
+        let cyclePayments: any[] = [];
+        let calculatedPot = 0;
+        
+        if (cycleData) {
+          const { data: paymentsData } = await supabase
+            .from('payments')
+            .select('user_id, status, completed_at, amount')
+            .eq('cycle_id', cycleData.id)
+            .eq('status', 'completed');
+            
+          if (paymentsData) {
+            cyclePayments = paymentsData;
+            calculatedPot = paymentsData.reduce((sum, p) => sum + Number(p.amount), 0);
+            if (user) {
+              setHasPaidCurrentCycle(paymentsData.some(p => p.user_id === user.id));
+            }
+          }
+        }
+
+        setCercle((prev: any) => ({
+          ...prev,
+          isMember: isUserMember,
+          potCollected: calculatedPot
         }));
+
+        const mappedMembers = membershipsData.map(m => {
+          const userPayment = cyclePayments.find(p => p.user_id === m.user_id);
+          return {
+            id: m.id,
+            user_id: m.user_id,
+            name: m.profiles?.full_name || "Utilisateur",
+            role: m.role === 'co-organizer' ? 'Organisateur' : 'Membre',
+            status: userPayment ? 'Payé' : 'En attente',
+            date: userPayment ? new Date(userPayment.completed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : "-",
+            avatar: m.profiles?.full_name ? m.profiles.full_name.substring(0, 2).toUpperCase() : "UT",
+            trustScore: m.profiles?.trust_score || 50
+          };
+        });
+        
+        // Trier pour mettre ceux qui ont payé en premier
+        mappedMembers.sort((a, b) => a.status === 'Payé' ? -1 : 1);
+        
         setMembers(mappedMembers);
       }
 
@@ -226,7 +297,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   }
 
   // Pourcentage de remplissage du pot
-  const potProgress = (cercle.potCollected / cercle.potTarget) * 100;
+  const potProgress = Math.min(100, (cercle.potCollected / cercle.potTarget) * 100);
   
   // Paramètres SVG pour le Donut
   const radius = 60;
@@ -235,6 +306,28 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-6 md:space-y-8 min-h-[80vh]">
+      
+      {/* Custom Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-success/10 text-success rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-textPrimary text-center mb-4">Cotisation Réussie !</h3>
+            <p className="text-textSecondary text-center mb-8 whitespace-pre-line leading-relaxed">
+              {successMessage}
+            </p>
+            <button 
+              onClick={handleCloseSuccessModal}
+              className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:-translate-y-0.5"
+            >
+              Super, fermer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header du Cercle */}
       <div className="bg-surface rounded-2xl md:rounded-3xl border border-border overflow-hidden shadow-sm">
         <div className="h-24 md:h-32 bg-gradient-to-r from-primaryLight to-primary/20 relative">
@@ -247,19 +340,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h1 className="text-2xl md:text-3xl font-extrabold text-textPrimary tracking-tight break-words">{cercle.name}</h1>
               <div className="flex flex-wrap gap-2 mt-1 md:mt-0">
-                <span className="px-2.5 py-1 bg-success/10 text-success text-[10px] font-bold uppercase tracking-wider rounded-md whitespace-nowrap">
-                  {cercle.status}
-                </span>
-                {cercle.isOrganizer && (
-                  <span className="px-2.5 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider rounded-md border border-primary/20 whitespace-nowrap">
-                    Organisateur
-                  </span>
-                )}
-                {cercle.isMember && (
-                  <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded-md border border-blue-200 whitespace-nowrap">
-                    Membre
-                  </span>
-                )}
+                {/* Badges supprimés pour épurer l'interface selon demande */}
               </div>
             </div>
             <p className="text-textSecondary text-sm md:text-base">{cercle.description}</p>
@@ -275,7 +356,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                 {isCopied ? "Copié !" : "Inviter"}
               </button>
             )}
-            {cercle.isOrganizer && cercle.status === 'En attente' && cercle.currentMembers >= 2 && (
+            {cercle.isOrganizer && cercle.status === 'En attente' && cercle.currentMembers >= 1 && (
               <button 
                 onClick={handleStartCircle}
                 disabled={isStarting}
@@ -285,14 +366,20 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
               </button>
             )}
             {cercle.isMember && cercle.status === 'En cours' && (
-              <button 
-                onClick={handlePayment}
-                disabled={isPaying}
-                className="flex-1 md:flex-none px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105 disabled:opacity-70 flex items-center justify-center gap-2"
-              >
-                {isPaying ? <Loader2 size={18} className="animate-spin" /> : <Wallet size={18} />}
-                {isPaying ? "Redirection..." : "Cotiser"}
-              </button>
+              hasPaidCurrentCycle ? (
+                <div className="flex-1 md:flex-none px-6 py-2.5 bg-success/10 text-success border border-success/20 font-bold rounded-xl flex items-center justify-center gap-2 text-sm text-center">
+                  <CheckCircle2 size={18} className="shrink-0" /> À jour pour ce tour
+                </div>
+              ) : (
+                <button 
+                  onClick={handlePayment}
+                  disabled={isPaying}
+                  className="flex-1 md:flex-none px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105 disabled:opacity-70 flex items-center justify-center gap-2"
+                >
+                  {isPaying ? <Loader2 size={18} className="animate-spin" /> : <Wallet size={18} />}
+                  {isPaying ? "Redirection..." : "Cotiser"}
+                </button>
+              )
             )}
           </div>
         </div>
@@ -362,7 +449,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
             
             <div className="relative z-10">
               <p className="text-3xl font-extrabold tracking-tight mb-1">{cercle.nextPaymentDate}</p>
-              <p className="text-sm text-white/80">Dans environ 22 jours</p>
+              <p className="text-sm text-white/80">{cercle.daysRemainingText}</p>
             </div>
           </div>
 
@@ -395,10 +482,10 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         </div>
 
         {/* Right Column: Members & History */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           
           {/* Cycle Actuel - Membres */}
-          <div className="bg-surface border border-border rounded-2xl md:rounded-3xl shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-surface border border-border rounded-2xl md:rounded-3xl shadow-sm overflow-hidden flex flex-col shrink-0">
             <div className="p-5 md:p-6 border-b border-border flex justify-between items-center bg-gray-50/50">
               <h2 className="text-lg font-bold text-textPrimary">Membres ({members.length})</h2>
               <span className="text-sm font-bold text-primary whitespace-nowrap ml-4">{members.filter(m => m.status === 'Payé').length} / {cercle.currentMembers} Payés</span>
@@ -469,7 +556,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
           </div>
 
           {/* Historique des Cycles Passés (Accordéon) */}
-          <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-sm">
+          <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-sm flex-1 flex flex-col">
             <div className="flex items-center gap-2 mb-6">
               <History className="text-primary" size={20} />
               <h2 className="text-lg font-bold text-textPrimary">Historique des Cycles Passés</h2>
