@@ -10,10 +10,12 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   
   const [cercle, setCercle] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
+  const [activeCycle, setActiveCycle] = useState<any>(null);
   const [pastCycles, setPastCycles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
 
   const { user } = useAuth();
   const supabase = createClient();
@@ -28,15 +30,68 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
   const handleStartCircle = async () => {
     setIsStarting(true);
-    const { error } = await supabase
+    const { error: circleError } = await supabase
       .from('circles')
       .update({ status: 'En cours' })
       .eq('id', cercle.id);
       
-    if (!error) {
+    if (circleError) {
+      console.error(circleError);
+      setIsStarting(false);
+      return;
+    }
+
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 30); 
+
+    const { error: cycleError } = await supabase
+      .from('cycles')
+      .insert({
+        circle_id: cercle.id,
+        cycle_number: 1,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        status: 'active'
+      });
+
+    if (!cycleError) {
       setCercle({ ...cercle, status: 'En cours' });
+      window.location.reload();
     }
     setIsStarting(false);
+  };
+
+  const handlePayment = async () => {
+    if (!activeCycle) {
+      alert("La tontine n'a pas de cycle actif pour le moment.");
+      return;
+    }
+    setIsPaying(true);
+    try {
+      const response = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          circle_id: cercle.id,
+          cycle_id: activeCycle.id,
+          amount: cercle.amount,
+          phone: ''
+        })
+      });
+      
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Erreur d'initialisation du paiement.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Une erreur inattendue est survenue");
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   useEffect(() => {
@@ -72,6 +127,24 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         isMember: true,
         image: circleData.icon_emoji || "💰"
       });
+
+      // Fetch active cycle
+      const { data: cycleData } = await supabase
+        .from('cycles')
+        .select('*')
+        .eq('circle_id', params.id)
+        .eq('status', 'active')
+        .order('cycle_number', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (cycleData) {
+        setActiveCycle(cycleData);
+        setCercle((prev: any) => ({
+          ...prev,
+          potCollected: cycleData.pot_amount
+        }));
+      }
 
       // Fetch members with profile data
       const { data: membershipsData } = await supabase
@@ -176,9 +249,14 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                 {isStarting ? <Loader2 size={18} className="animate-spin" /> : "Démarrer"}
               </button>
             )}
-            {cercle.isMember && (
-              <button className="flex-1 md:flex-none px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105">
-                Cotiser
+            {cercle.isMember && cercle.status === 'En cours' && (
+              <button 
+                onClick={handlePayment}
+                disabled={isPaying}
+                className="flex-1 md:flex-none px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105 disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {isPaying ? <Loader2 size={18} className="animate-spin" /> : <Wallet size={18} />}
+                {isPaying ? "Redirection..." : "Cotiser"}
               </button>
             )}
           </div>
