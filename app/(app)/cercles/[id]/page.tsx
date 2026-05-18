@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Wallet, AlertCircle, CalendarClock, MoreVertical, CheckCircle2, Clock, XCircle, ChevronDown, ChevronUp, History, Info, Smartphone, Loader2 } from "lucide-react";
+import { Users, Wallet, AlertCircle, CalendarClock, MoreVertical, CheckCircle2, Clock, XCircle, ChevronDown, ChevronUp, History, Info, Smartphone, Loader2, Share2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,9 +12,32 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   const [members, setMembers] = useState<any[]>([]);
   const [pastCycles, setPastCycles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const { user } = useAuth();
   const supabase = createClient();
+
+  const handleCopyLink = () => {
+    if (!cercle?.invite_token) return;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "https://tontineo.app");
+    navigator.clipboard.writeText(`${appUrl}/join/${cercle.invite_token}`);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleStartCircle = async () => {
+    setIsStarting(true);
+    const { error } = await supabase
+      .from('circles')
+      .update({ status: 'En cours' })
+      .eq('id', cercle.id);
+      
+    if (!error) {
+      setCercle({ ...cercle, status: 'En cours' });
+    }
+    setIsStarting(false);
+  };
 
   useEffect(() => {
     const fetchCercleDetails = async () => {
@@ -134,10 +157,28 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
             <p className="text-textSecondary text-sm md:text-base">{cercle.description}</p>
           </div>
           
-          <div className="flex w-full md:w-auto gap-3 mt-2 md:mt-0">
+          <div className="flex flex-wrap w-full md:w-auto gap-3 mt-2 md:mt-0">
+            {cercle.isOrganizer && cercle.status === 'En attente' && (
+              <button 
+                onClick={handleCopyLink}
+                className="flex-1 md:flex-none px-6 py-2.5 bg-surface border border-border hover:bg-gray-50 text-textPrimary font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                {isCopied ? <CheckCircle2 size={18} className="text-success" /> : <Share2 size={18} />}
+                {isCopied ? "Copié !" : "Inviter"}
+              </button>
+            )}
+            {cercle.isOrganizer && cercle.status === 'En attente' && cercle.currentMembers >= 2 && (
+              <button 
+                onClick={handleStartCircle}
+                disabled={isStarting}
+                className="flex-1 md:flex-none px-6 py-2.5 bg-textPrimary hover:bg-black text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+              >
+                {isStarting ? <Loader2 size={18} className="animate-spin" /> : "Démarrer"}
+              </button>
+            )}
             {cercle.isMember && (
               <button className="flex-1 md:flex-none px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105">
-                Cotiser maintenant
+                Cotiser
               </button>
             )}
           </div>
