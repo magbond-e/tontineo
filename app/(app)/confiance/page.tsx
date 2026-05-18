@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck, Award, TrendingUp, CheckCircle2, AlertCircle, Info, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function ConfiancePage() {
+  const { t } = useLanguage();
   const [score, setScore] = useState(0);
-  const targetScore = 92;
+  const targetScore = 72;
 
   useEffect(() => {
     // Animation du compteur
@@ -32,18 +34,13 @@ export default function ConfiancePage() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
-  const history = [
-    { id: 1, action: "Paiement ponctuel (Cercle Entrepreneurs)", date: "10/05/2026", points: "+2", type: "positive" },
-    { id: 2, action: "Paiement en avance (Famille Diop)", date: "15/04/2026", points: "+5", type: "positive" },
-    { id: 3, action: "Retard de 2 jours (Voyage Dubai)", date: "02/03/2026", points: "-5", type: "negative" },
-    { id: 4, action: "Création de profil vérifié", date: "01/01/2026", points: "+50", type: "positive" },
-  ];
+  const history: any[] = [];
 
   return (
     <div className="max-w-[1000px] mx-auto min-h-[80vh] space-y-8">
       <div>
-        <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">Score de Confiance</h1>
-        <p className="text-textSecondary mt-1">Votre réputation financière au sein de la communauté Tontineo.</p>
+        <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">{t("score_title")}</h1>
+        <p className="text-textSecondary mt-1">{t("score_subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -58,7 +55,7 @@ export default function ConfiancePage() {
               <circle
                 cx="96" cy="96" r={radius}
                 stroke="currentColor" strokeWidth="16" fill="transparent"
-                className="text-gray-100"
+                className="text-gray-100 dark:text-slate-800"
               />
               {/* Progress Circle */}
               <circle
@@ -78,8 +75,8 @@ export default function ConfiancePage() {
             </div>
           </div>
           
-          <h2 className="text-xl font-bold text-textPrimary mb-1">Excellent Profil</h2>
-          <p className="text-sm text-textSecondary max-w-[200px]">Vous êtes plus fiable que 92% des utilisateurs.</p>
+          <h2 className="text-xl font-bold text-textPrimary mb-1">Nouveau Profil</h2>
+          <p className="text-sm text-textSecondary max-w-[200px]">Participez à des tontines pour améliorer votre score.</p>
         </div>
 
         {/* Benefits & Comparison */}
@@ -93,7 +90,7 @@ export default function ConfiancePage() {
               <h3 className="font-bold text-textPrimary mb-1">Au-dessus de la moyenne</h3>
               <p className="text-sm text-textSecondary mb-3">La moyenne de la communauté est de <strong>68</strong>.</p>
               
-              <div className="relative h-2 w-full bg-gray-100 rounded-full mt-6">
+              <div className="relative h-2 w-full bg-gray-100 dark:bg-slate-800 rounded-full mt-6">
                 <div className="absolute top-0 left-0 h-full bg-border rounded-full" style={{ width: '68%' }}></div>
                 <div className="absolute top-0 left-0 h-full bg-primary rounded-full shadow-sm shadow-primary/50" style={{ width: `${score}%` }}></div>
                 {/* Marker Moyenne */}
@@ -140,32 +137,25 @@ export default function ConfiancePage() {
           </h3>
           
           <div className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#FEF08A] to-[#EAB308] rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
+            <div className="flex flex-col items-center text-center opacity-40 grayscale">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
                 <span className="text-2xl">⚡</span>
               </div>
               <p className="text-xs font-bold text-textPrimary leading-tight">Payeur<br/>Ponctuel</p>
             </div>
             
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#BFDBFE] to-[#3B82F6] rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
+            <div className="flex flex-col items-center text-center opacity-40 grayscale">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
                 <span className="text-2xl">👑</span>
               </div>
               <p className="text-xs font-bold text-textPrimary leading-tight">Organisateur<br/>Pro</p>
             </div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#FECACA] to-[#EF4444] rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
+            <div className="flex flex-col items-center text-center opacity-40 grayscale">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm mb-2 border-2 border-white ring-2 ring-border">
                 <span className="text-2xl">❤️</span>
               </div>
               <p className="text-xs font-bold text-textPrimary leading-tight">Membre<br/>Fidèle</p>
-            </div>
-            
-            <div className="flex flex-col items-center text-center opacity-40 grayscale">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2 border-2 border-white ring-2 ring-border">
-                <span className="text-2xl">🌟</span>
-              </div>
-              <p className="text-xs font-bold text-textSecondary leading-tight">Légende<br/>(100 pts)</p>
             </div>
           </div>
         </div>
@@ -178,17 +168,23 @@ export default function ConfiancePage() {
           </div>
           
           <div className="flex-1 space-y-4">
-            {history.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                <div className="flex flex-col gap-1 pr-4 min-w-0">
-                  <p className="text-sm font-bold text-textPrimary truncate">{item.action}</p>
-                  <p className="text-xs text-textSecondary">{item.date}</p>
-                </div>
-                <div className={`font-mono font-bold text-sm px-2 py-1 rounded-md shrink-0 whitespace-nowrap ${item.type === 'positive' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-                  {item.points} pts
-                </div>
+            {history.length === 0 ? (
+              <div className="py-8 text-center text-textSecondary text-sm bg-gray-50 dark:bg-slate-800 rounded-xl">
+                Aucun historique disponible pour le moment.
               </div>
-            ))}
+            ) : (
+              history.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                  <div className="flex flex-col gap-1 pr-4 min-w-0">
+                    <p className="text-sm font-bold text-textPrimary truncate">{item.action}</p>
+                    <p className="text-xs text-textSecondary">{item.date}</p>
+                  </div>
+                  <div className={`font-mono font-bold text-sm px-2 py-1 rounded-md shrink-0 whitespace-nowrap ${item.type === 'positive' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+                    {item.points} pts
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-3">

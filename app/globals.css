@@ -2,13 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+@layer base {
+  :root {
+    --color-background: 250 250 250; /* #FAFAFA */
+    --color-surface: 255 255 255; /* #FFFFFF */
+    --color-border: 229 231 235; /* #E5E7EB */
+    --color-primary: 22 163 74; /* #16A34A */
+    --color-primaryLight: 220 252 231; /* #DCFCE7 */
+    --color-textPrimary: 17 24 39; /* #111827 */
+    --color-textSecondary: 107 114 128; /* #6B7280 */
+  }
+
+  .dark {
+    --color-background: 15 23 42; /* #0F172A */
+    --color-surface: 30 41 59; /* #1E293B */
+    --color-border: 51 65 85; /* #334155 */
+    --color-primary: 22 163 74; /* #16A34A */
+    --color-primaryLight: 6 78 59; /* #064E3B */
+    --color-textPrimary: 255 255 255; /* #FFFFFF */
+    --color-textSecondary: 148 163 184; /* #94A3B8 */
+  }
 }
 
 body {
-  background-color: theme('colors.background');
-  color: theme('colors.textPrimary');
+  background-color: rgb(var(--color-background));
+  color: rgb(var(--color-textPrimary));
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom scrollbar to look premium */
@@ -24,12 +43,12 @@ body {
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: theme('colors.textSecondary');
+  background: rgb(var(--color-textSecondary));
 }
 
 /* Custom utility for the glass effect or premium borders if needed */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(var(--color-surface), 0.7);
   backdrop-filter: blur(12px);
-  border: 1px solid theme('colors.border');
+  border: 1px solid rgb(var(--color-border));
 }

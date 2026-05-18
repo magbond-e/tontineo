@@ -1,0 +1,556 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
+import { User, ShieldCheck, Bell, Crown, Settings, UploadCloud, CheckCircle2, AlertCircle, Camera, FileText, Check, Smartphone, Mail, MessageSquare, Moon, Sun, Globe, Loader2, Save, Lock } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
+
+export default function ParametresPage() {
+  const { theme, setTheme } = useTheme();
+  const { lang, setLang, t } = useLanguage();
+  const { userProfile } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState("profil");
+  const [docType, setDocType] = useState("cip");
+  
+  // Profil Form State
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [email, setEmail] = useState("");
+  const [momo, setMomo] = useState("");
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // WhatsApp Logic
+  const [showWaModal, setShowWaModal] = useState(false);
+  const [waNumber, setWaNumber] = useState("");
+  const [waInput, setWaInput] = useState("");
+  const [pendingWaNumber, setPendingWaNumber] = useState("");
+
+  // Toggles
+  const [waEnabled, setWaEnabled] = useState(true);
+  const [smsEnabled, setSmsEnabled] = useState(false);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+
+  // Plan logic
+  const [userPlan, setUserPlan] = useState("free");
+
+  useEffect(() => {
+    setMounted(true);
+
+    if (userProfile) {
+      setName(userProfile.name);
+      setEmail(userProfile.email);
+      if (userProfile.whatsapp) {
+        setWaNumber(userProfile.whatsapp);
+        setWaInput(userProfile.whatsapp);
+      }
+    }
+
+    const savedData = localStorage.getItem("tontineo_profile");
+    if (savedData) {
+      try {
+        const data = JSON.parse(savedData);
+        if (data.name) setName(data.name);
+        if (data.city) setCity(data.city);
+        if (data.email) setEmail(data.email);
+        if (data.momo) setMomo(data.momo);
+        if (data.waNumber) {
+          setWaNumber(data.waNumber);
+          setWaInput(data.waNumber);
+        }
+        if (data.waEnabled !== undefined) setWaEnabled(data.waEnabled);
+        if (data.smsEnabled !== undefined) setSmsEnabled(data.smsEnabled);
+        if (data.emailEnabled !== undefined) setEmailEnabled(data.emailEnabled);
+      } catch(e) {}
+    }
+  }, []);
+
+  const handleSaveProfile = () => {
+    if (waInput !== waNumber) {
+      setPendingWaNumber(waInput);
+      setShowWaModal(true);
+      return;
+    }
+    executeSave(waInput);
+  };
+
+  const executeSave = (finalWaNum: string) => {
+    setIsSaving(true);
+    setSavedSuccess(false);
+    
+    // Save to localStorage
+    const dataToSave = {
+      name, city, email, momo, waNumber: finalWaNum, lang, waEnabled, smsEnabled, emailEnabled
+    };
+    localStorage.setItem("tontineo_profile", JSON.stringify(dataToSave));
+
+    setTimeout(() => {
+      setIsSaving(false);
+      setSavedSuccess(true);
+      if (pendingWaNumber) {
+        setWaNumber(pendingWaNumber);
+        setPendingWaNumber("");
+      }
+      setTimeout(() => setSavedSuccess(false), 3000);
+    }, 1500);
+  };
+
+  const confirmWaChange = () => {
+    setShowWaModal(false);
+    executeSave(pendingWaNumber);
+  };
+
+  const toggleSms = () => {
+    if (userPlan === "free") return; // Premium locked
+    const nextState = !smsEnabled;
+    setSmsEnabled(nextState);
+    const data = JSON.parse(localStorage.getItem("tontineo_profile") || "{}");
+    data.smsEnabled = nextState;
+    localStorage.setItem("tontineo_profile", JSON.stringify(data));
+  };
+
+  const toggleWa = () => {
+    const nextState = !waEnabled;
+    setWaEnabled(nextState);
+    const data = JSON.parse(localStorage.getItem("tontineo_profile") || "{}");
+    data.waEnabled = nextState;
+    localStorage.setItem("tontineo_profile", JSON.stringify(data));
+  };
+  
+  const toggleEmail = () => {
+    const nextState = !emailEnabled;
+    setEmailEnabled(nextState);
+    const data = JSON.parse(localStorage.getItem("tontineo_profile") || "{}");
+    data.emailEnabled = nextState;
+    localStorage.setItem("tontineo_profile", JSON.stringify(data));
+  };
+
+  const changeLanguage = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLang = e.target.value as "fr" | "en";
+    setLang(newLang);
+  };
+
+  if (!mounted) return null;
+
+  const tabs = [
+    { id: "profil", label: t("tab_profile"), icon: User },
+    { id: "kyc", label: t("tab_kyc"), icon: ShieldCheck },
+    { id: "notifications", label: t("tab_notif"), icon: Bell },
+    { id: "abonnement", label: t("tab_plan"), icon: Crown },
+    { id: "preferences", label: t("tab_pref"), icon: Settings },
+  ];
+
+  return (
+    <div className="max-w-[1000px] mx-auto space-y-6 md:space-y-8 min-h-[80vh] relative">
+      
+      {/* Modal Confirmation WhatsApp */}
+      {showWaModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-3xl border border-border shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-warning/10 text-warning rounded-full flex items-center justify-center mb-6 mx-auto">
+              <AlertCircle size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-textPrimary text-center mb-3">{t("wa_modal_title")}</h3>
+            <p className="text-textSecondary text-center text-sm mb-8">
+              {t("wa_modal_desc")} <strong className="text-textPrimary">{pendingWaNumber}</strong>. {t("wa_modal_sure")}
+            </p>
+            <div className="flex gap-4">
+              <button onClick={() => {setShowWaModal(false); setPendingWaNumber("");}} className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-textPrimary font-bold rounded-xl transition-colors">
+                {t("cancel")}
+              </button>
+              <button onClick={confirmWaChange} className="flex-1 py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all shadow-md shadow-primary/20">
+                {t("confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">{t("settings_title")}</h1>
+        <p className="text-textSecondary mt-1">{t("settings_subtitle")}</p>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="flex overflow-x-auto hide-scrollbar border-b border-border">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${
+                isActive
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-textSecondary hover:text-textPrimary hover:bg-gray-50/50 dark:hover:bg-gray-800/50"
+              }`}
+            >
+              <Icon size={18} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-5 md:p-8 shadow-sm min-h-[500px]">
+        
+        {/* --- ONGLET PROFIL --- */}
+        {activeTab === "profil" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
+            <h2 className="text-xl font-bold text-textPrimary mb-6">{t("personal_info")}</h2>
+            
+            <div className="flex flex-col md:flex-row gap-8 mb-8">
+              {/* Avatar */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-border relative group cursor-pointer overflow-hidden">
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="text-white" size={24} />
+                  </div>
+                  <span className="text-3xl font-bold text-textSecondary uppercase">
+                    {userProfile ? userProfile.name.substring(0, 2) : "UT"}
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-primary cursor-pointer hover:underline">{t("change_photo")}</span>
+              </div>
+              
+              {/* Fields */}
+              <div className="flex-1 space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">{t("full_name")}</label>
+                    <input type="text" value={name} onChange={(e)=>setName(e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium text-textPrimary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">{t("city_country")}</label>
+                    <input type="text" value={city} onChange={(e)=>setCity(e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium text-textPrimary" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">{t("email")}</label>
+                    <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium text-textPrimary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">{t("whatsapp_num")}</label>
+                    <input 
+                      type="tel" 
+                      value={waInput} 
+                      onChange={(e) => setWaInput(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium text-textPrimary" 
+                    />
+                  </div>
+                </div>
+                <div className="p-5 bg-primary/5 border border-primary/20 rounded-xl mt-4">
+                  <label className="block text-sm font-bold text-primary mb-1.5">{t("momo_num")}</label>
+                  <p className="text-xs text-textSecondary mb-3">{t("momo_desc")}</p>
+                  <input type="tel" value={momo} onChange={(e)=>setMomo(e.target.value)} className="w-full max-w-md px-4 py-2.5 bg-surface dark:bg-slate-800 border border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-medium text-textPrimary shadow-sm" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-end gap-4">
+              {savedSuccess && (
+                <span className="text-success text-sm font-bold flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                  <CheckCircle2 size={18} /> {t("saved_success")}
+                </span>
+              )}
+              <button 
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="w-full sm:w-auto px-8 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {isSaving ? t("saving_btn") : t("save_btn")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* --- ONGLET KYC --- */}
+        {activeTab === "kyc" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-textPrimary">{t("kyc_title")}</h2>
+                <p className="text-textSecondary text-sm mt-1">{t("kyc_desc")}</p>
+              </div>
+              <div className="px-3 py-1.5 bg-warning/10 border border-warning/20 text-warning text-sm font-bold rounded-lg flex items-center gap-2">
+                <AlertCircle size={16} /> {t("unverified")}
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="border border-border rounded-3xl p-6 md:p-8 bg-gray-50/30 dark:bg-slate-800/20">
+                <label className="block text-sm font-bold text-textPrimary mb-4">{t("doc_type")}</label>
+                <div className="flex flex-wrap gap-4 mb-8">
+                  {[
+                    { id: 'cip', label: t("cip") },
+                    { id: 'passport', label: t("passport") },
+                    { id: 'permis', label: t("license") }
+                  ].map(doc => (
+                    <button 
+                      key={doc.id}
+                      onClick={() => setDocType(doc.id)}
+                      className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-2 ${
+                        docType === doc.id ? 'border-primary bg-primary/5 text-primary shadow-sm' : 'border-border text-textSecondary bg-surface hover:bg-gray-50 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {docType === doc.id && <CheckCircle2 size={16} />}
+                      {doc.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Upload Recto */}
+                  <div className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                    <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <FileText size={28} />
+                    </div>
+                    <h4 className="font-bold text-textPrimary mb-1">{t("front")}</h4>
+                    <p className="text-xs text-textSecondary">{t("upload_hint")}<br/>{t("upload_format")}</p>
+                  </div>
+                  
+                  {/* Upload Verso */}
+                  <div className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                    <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <UploadCloud size={28} />
+                    </div>
+                    <h4 className="font-bold text-textPrimary mb-1">{t("back")}</h4>
+                    <p className="text-xs text-textSecondary">{t("back_hint")}<br/>{t("upload_format")}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-primary/5 p-4 rounded-xl text-sm text-primary flex gap-3 items-start border border-primary/20 max-w-3xl">
+                <ShieldCheck size={20} className="shrink-0 mt-0.5" />
+                <p className="font-medium">{t("kyc_security")}</p>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button className="w-full md:w-auto px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all opacity-50 cursor-not-allowed">
+                  {t("submit_kyc")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- ONGLET NOTIFICATIONS --- */}
+        {activeTab === "notifications" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-3xl">
+            <h2 className="text-xl font-bold text-textPrimary mb-6">{t("notif_title")}</h2>
+            
+            <div className="grid grid-cols-1 gap-6">
+              {/* WhatsApp Group */}
+              <div className="border border-border rounded-2xl p-5 shadow-sm bg-surface">
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl">
+                      <MessageSquare size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-textPrimary flex flex-wrap items-center gap-2">WhatsApp <span className="bg-[#25D366] text-white text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wider">{t("wa_rec")}</span></h3>
+                      <p className="text-xs text-textSecondary">{t("wa_desc")}</p>
+                    </div>
+                  </div>
+                  <div onClick={toggleWa} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${waEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 shadow-sm transition-all ${waEnabled ? 'right-1' : 'left-1'}`}></div>
+                  </div>
+                </div>
+                <div className={`space-y-3 pl-14 transition-opacity ${waEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary" />
+                    <span className="text-sm font-medium text-textPrimary">{t("wa_opt1")}</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary" />
+                    <span className="text-sm font-medium text-textPrimary">{t("wa_opt2")}</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary" />
+                    <span className="text-sm font-medium text-textPrimary">{t("wa_opt3")}</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* SMS Group */}
+              <div className={`border border-border rounded-2xl p-5 shadow-sm bg-surface relative ${userPlan === 'free' ? 'opacity-70' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gray-100 dark:bg-gray-800 text-textSecondary rounded-xl">
+                      <Smartphone size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-textPrimary flex items-center gap-2">
+                        {t("sms_title")}
+                        {userPlan === 'free' && <Lock size={14} className="text-warning" />}
+                      </h3>
+                      <p className="text-xs text-textSecondary">
+                        {userPlan === 'free' ? <span className="text-warning">{t("sms_lock")}</span> : t("sms_desc")}
+                      </p>
+                    </div>
+                  </div>
+                  <div onClick={toggleSms} className={`w-12 h-6 rounded-full relative transition-colors ${userPlan === 'free' ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed' : smsEnabled ? 'bg-primary cursor-pointer' : 'bg-gray-300 dark:bg-gray-700 cursor-pointer'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 shadow-sm transition-all ${smsEnabled ? 'right-1' : 'left-1'}`}></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Group */}
+              <div className="border border-border rounded-2xl p-5 shadow-sm bg-surface">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
+                      <Mail size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-textPrimary">{t("email_title")}</h3>
+                      <p className="text-xs text-textSecondary">{t("email_desc")}</p>
+                    </div>
+                  </div>
+                  <div onClick={toggleEmail} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${emailEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 shadow-sm transition-all ${emailEnabled ? 'right-1' : 'left-1'}`}></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* --- ONGLET ABONNEMENT --- */}
+        {activeTab === "abonnement" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="text-center max-w-xl mx-auto mb-10">
+              <h2 className="text-2xl font-extrabold text-textPrimary mb-2">{t("plan_title")}</h2>
+              <p className="text-textSecondary text-sm">{t("plan_desc")}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Free Plan */}
+              <div className="border border-border rounded-3xl p-6 bg-surface shadow-sm flex flex-col">
+                <h3 className="font-bold text-textPrimary text-lg mb-1">{t("essential")}</h3>
+                <div className="flex items-end gap-1 mb-6">
+                  <span className="text-3xl font-extrabold text-textPrimary font-mono">0</span>
+                  <span className="text-textSecondary text-sm font-medium pb-1">FCFA / mois</span>
+                </div>
+                <div className="space-y-3 mb-8 flex-1">
+                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> 1 Cercle actif</div>
+                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Jusqu'à 10 membres</div>
+                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Frais de retrait normaux (2%)</div>
+                </div>
+                <button className="w-full py-2.5 bg-gray-100 dark:bg-slate-800 text-textSecondary font-bold rounded-xl cursor-default">
+                  {t("current_plan")}
+                </button>
+              </div>
+
+              {/* Pro Plan */}
+              <div className="border-2 border-primary rounded-3xl p-6 bg-surface shadow-md flex flex-col relative transform md:-translate-y-4">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+                  {t("popular")}
+                </div>
+                <h3 className="font-bold text-primary text-lg mb-1">{t("pro_org")}</h3>
+                <div className="flex items-end gap-1 mb-6">
+                  <span className="text-3xl font-extrabold text-textPrimary font-mono">2500</span>
+                  <span className="text-textSecondary text-sm font-medium pb-1">FCFA / mois</span>
+                </div>
+                <div className="space-y-3 mb-8 flex-1">
+                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> 5 Cercles actifs</div>
+                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Jusqu'à 50 membres / cercle</div>
+                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Frais de retrait réduits (1.5%)</div>
+                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Relances auto WhatsApp & SMS</div>
+                </div>
+                <button className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:-translate-y-0.5">
+                  {t("upgrade_pro")}
+                </button>
+              </div>
+
+              {/* Business Plan */}
+              <div className="border border-border rounded-3xl p-6 bg-surface shadow-sm flex flex-col">
+                <h3 className="font-bold text-textPrimary text-lg mb-1">{t("business")}</h3>
+                <div className="flex items-end gap-1 mb-6">
+                  <span className="text-3xl font-extrabold text-textPrimary font-mono">10000</span>
+                  <span className="text-textSecondary text-sm font-medium pb-1">FCFA / mois</span>
+                </div>
+                <div className="space-y-3 mb-8 flex-1">
+                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Cercles et membres illimités</div>
+                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Frais de retrait mini (1%)</div>
+                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Tableau de bord avancé</div>
+                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Support prioritaire H24</div>
+                </div>
+                <button className="w-full py-2.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-border text-textPrimary font-bold rounded-xl transition-all">
+                  {t("upgrade_biz")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- ONGLET PRÉFÉRENCES --- */}
+        {activeTab === "preferences" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-2xl">
+            <h2 className="text-xl font-bold text-textPrimary mb-6">{t("pref_title")}</h2>
+            
+            <div className="space-y-6">
+              {/* Thème */}
+              <div className="border border-border rounded-2xl p-5 shadow-sm bg-surface">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gray-100 dark:bg-gray-800 text-textSecondary rounded-xl">
+                      {theme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-textPrimary">{t("theme_title")}</h3>
+                      <p className="text-xs text-textSecondary">{t("theme_desc")}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex bg-gray-50/50 dark:bg-slate-800/30 p-2 rounded-xl border border-border gap-2">
+                  <button 
+                    onClick={() => setTheme('light')}
+                    className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-surface shadow-sm text-textPrimary border border-border' : 'text-textSecondary hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                  >
+                    <Sun size={16} /> {t("light")}
+                  </button>
+                  <button 
+                    onClick={() => setTheme('dark')}
+                    className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${theme === 'dark' ? 'bg-[#1E293B] shadow-sm text-[#F8FAFC] border border-[#334155]' : 'text-textSecondary hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                  >
+                    <Moon size={16} /> {t("dark")}
+                  </button>
+                </div>
+              </div>
+
+              {/* Langue */}
+              <div className="border border-border rounded-2xl p-5 shadow-sm bg-surface">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gray-100 dark:bg-gray-800 text-textSecondary rounded-xl">
+                      <Globe size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-textPrimary">{t("lang_title")}</h3>
+                      <p className="text-xs text-textSecondary">{t("lang_desc")}</p>
+                    </div>
+                  </div>
+                </div>
+                <select value={lang} onChange={changeLanguage} className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-bold text-textPrimary cursor-pointer appearance-none">
+                  <option value="fr">🇫🇷 Français</option>
+                  <option value="en">🇬🇧 English</option>
+                </select>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,13 +9,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#FAFAFA", // Very light gray for main background
-        surface: "#FFFFFF",    // White for cards and sidebar
-        border: "#E5E7EB",     // Light gray for borders
-        primary: "#16A34A",    // Green 600
-        primaryLight: "#DCFCE7", // Green 100 for active backgrounds
-        textPrimary: "#111827", // Gray 900 for primary text
-        textSecondary: "#6B7280", // Gray 500 for secondary text
+        background: "rgb(var(--color-background) / <alpha-value>)",
+        surface: "rgb(var(--color-surface) / <alpha-value>)",
+        border: "rgb(var(--color-border) / <alpha-value>)",
+        primary: "rgb(var(--color-primary) / <alpha-value>)",
+        primaryLight: "rgb(var(--color-primaryLight) / <alpha-value>)",
+        textPrimary: "rgb(var(--color-textPrimary) / <alpha-value>)",
+        textSecondary: "rgb(var(--color-textSecondary) / <alpha-value>)",
         success: "#22C55E",
         warning: "#EAB308",
         danger: "#EF4444",

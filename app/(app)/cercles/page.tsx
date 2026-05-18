@@ -1,68 +1,63 @@
 "use client";
 
-import { Plus, Users, Wallet, Filter, CalendarClock, MoreVertical } from "lucide-react";
+import { Plus, Users, Wallet, Filter, CalendarClock, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function CerclesPage() {
+  const { t } = useLanguage();
   const [filter, setFilter] = useState("Tous");
+  const [cercles, setCercles] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const filters = ["Tous", "En cours", "En attente", "Terminés"];
-
-  const cercles = [
-    {
-      id: 1,
-      name: "Cercle des Entrepreneurs",
-      status: "En cours",
-      membersCount: 10,
-      membersMax: 10,
-      potStatus: 400000,
-      potTarget: 500000,
-      nextPayment: "10/06/2026",
-      amount: "50 000 FCFA",
-      isOrganizer: true,
-      image: "CE"
-    },
-    {
-      id: 2,
-      name: "Famille Diop Solidarité",
-      status: "En cours",
-      membersCount: 12,
-      membersMax: 15,
-      potStatus: 120000,
-      potTarget: 150000,
-      nextPayment: "Aujourd'hui",
-      amount: "10 000 FCFA",
-      isOrganizer: false,
-      image: "FD"
-    },
-    {
-      id: 3,
-      name: "Projet Immobilier 2027",
-      status: "En attente",
-      membersCount: 4,
-      membersMax: 5,
-      potStatus: 0,
-      potTarget: 1000000,
-      nextPayment: "En attente",
-      amount: "200 000 FCFA",
-      isOrganizer: true,
-      image: "PI"
-    },
-    {
-      id: 4,
-      name: "Voyage Dubai",
-      status: "Terminés",
-      membersCount: 8,
-      membersMax: 8,
-      potStatus: 400000,
-      potTarget: 400000,
-      nextPayment: "Terminé",
-      amount: "50 000 FCFA",
-      isOrganizer: false,
-      image: "VD"
-    }
+  const { user } = useAuth();
+  const supabase = createClient();
+  
+  const filters = [
+    { id: "Tous", label: t("filter_all") },
+    { id: "En cours", label: t("filter_ongoing") },
+    { id: "En attente", label: t("filter_waiting") },
+    { id: "Terminés", label: t("filter_done") }
   ];
+
+  useEffect(() => {
+    const fetchCercles = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from('circles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching cercles:", error);
+      } else if (data) {
+        const mappedCercles = data.map(c => ({
+          id: c.id,
+          name: c.name,
+          status: c.status,
+          membersCount: c.current_members || 1,
+          membersMax: c.max_members,
+          potStatus: c.pot_collected || 0,
+          potTarget: c.pot_target || 0,
+          nextPayment: "En attente",
+          amount: `${c.amount.toLocaleString('fr-FR')} FCFA`,
+          isOrganizer: c.organizer_id === user.id,
+          image: c.icon_emoji || "💰"
+        }));
+        setCercles(mappedCercles);
+      }
+      setIsLoading(false);
+    };
+
+    fetchCercles();
+  }, [user]);
 
   const filteredCercles = filter === "Tous" ? cercles : cercles.filter(c => c.status === filter);
 
@@ -70,37 +65,44 @@ export default function CerclesPage() {
     <div className="max-w-[1200px] mx-auto relative min-h-[80vh]">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">Mes Cercles</h1>
-          <p className="text-textSecondary mt-1">Gérez vos tontines et suivez la progression des pots.</p>
+          <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">{t("circles_title")}</h1>
+          <p className="text-textSecondary mt-1">{t("circles_subtitle")}</p>
         </div>
         
         {/* Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
           {filters.map(f => (
             <button 
-              key={f}
-              onClick={() => setFilter(f)}
+              key={f.id}
+              onClick={() => setFilter(f.id)}
               className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                filter === f 
+                filter === f.id 
                   ? 'bg-textPrimary text-surface shadow-md' 
                   : 'bg-surface border border-border text-textSecondary hover:border-textSecondary'
               }`}
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center text-textSecondary h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+          <p>Chargement de vos cercles...</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCercles.map(cercle => (
-          <div key={cercle.id} className="bg-surface rounded-2xl border border-border p-6 shadow-sm flex flex-col group hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden">
+          <div key={cercle.id} className="bg-surface rounded-2xl border border-border p-5 md:p-6 shadow-sm flex flex-col group hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden">
             {/* Background Glow */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
             <div className="flex justify-between items-start mb-6 relative z-10">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primaryLight flex items-center justify-center text-primary font-bold shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-primaryLight flex items-center justify-center text-primary font-bold text-xl shadow-sm shrink-0">
                   {cercle.image}
                 </div>
                 <div>
@@ -108,39 +110,41 @@ export default function CerclesPage() {
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
                       cercle.status === 'En cours' ? 'bg-success/10 text-success' : 
-                      cercle.status === 'En attente' ? 'bg-warning/10 text-warning' : 'bg-gray-100 text-textSecondary'
+                      cercle.status === 'En attente' ? 'bg-warning/10 text-warning' : 'bg-gray-100 dark:bg-gray-800 text-textSecondary'
                     }`}>
-                      {cercle.status}
+                      {cercle.status === 'En cours' ? t("filter_ongoing") : cercle.status === 'En attente' ? t("filter_waiting") : t("filter_done")}
                     </span>
+                    {cercle.isOrganizer && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                        {t("pro_org").split(" ")[1] || "Organisateur"}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-              <button className="text-textSecondary hover:text-textPrimary p-1">
-                <MoreVertical size={20} />
-              </button>
             </div>
 
             <div className="space-y-4 mb-6 relative z-10">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-textSecondary flex items-center gap-2"><Wallet size={16} /> Montant</span>
+                <span className="text-textSecondary flex items-center gap-2"><Wallet size={16} /> {t("circle_amount")}</span>
                 <span className="font-bold text-textPrimary">{cercle.amount}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-textSecondary flex items-center gap-2"><CalendarClock size={16} /> Prochain gain</span>
+                <span className="text-textSecondary flex items-center gap-2"><CalendarClock size={16} /> {t("circle_next_pay")}</span>
                 <span className="font-bold text-textPrimary">{cercle.nextPayment}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-textSecondary flex items-center gap-2"><Users size={16} /> Membres</span>
+                <span className="text-textSecondary flex items-center gap-2"><Users size={16} /> {t("circle_members")}</span>
                 <span className="font-bold text-textPrimary">{cercle.membersCount} / {cercle.membersMax}</span>
               </div>
             </div>
 
             <div className="mb-6 relative z-10">
               <div className="flex justify-between text-xs text-textSecondary mb-2 font-medium">
-                <span>Pot collecté</span>
+                <span>{t("circle_pot_collected")}</span>
                 <span>{((cercle.potStatus / cercle.potTarget) * 100).toFixed(0)}%</span>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2">
+              <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-1000 ${cercle.status === 'Terminés' ? 'bg-success' : 'bg-primary'}`}
                   style={{ width: `${(cercle.potStatus / cercle.potTarget) * 100}%` }}
@@ -149,25 +153,29 @@ export default function CerclesPage() {
             </div>
 
             <Link href={`/cercles/${cercle.id}`} className="mt-auto relative z-10">
-              <button className="w-full py-2.5 bg-gray-50 hover:bg-primary text-textPrimary hover:text-white font-bold rounded-xl border border-border hover:border-primary transition-all duration-300">
-                Gérer le cercle
+              <button className="w-full py-2.5 bg-gray-50 dark:bg-slate-800 hover:bg-primary dark:hover:bg-primary text-textPrimary hover:text-white font-bold rounded-xl border border-border hover:border-primary transition-all duration-300">
+                {t("btn_manage_circle")}
               </button>
             </Link>
           </div>
         ))}
       </div>
 
-      {filteredCercles.length === 0 && (
-        <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-border rounded-2xl">
-          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 text-textSecondary">
-            <Filter size={32} />
-          </div>
-          <h3 className="text-lg font-bold text-textPrimary mb-1">Aucun cercle trouvé</h3>
-          <p className="text-textSecondary text-sm mb-6">Vous n'avez aucun cercle avec ce statut pour le moment.</p>
-          <button onClick={() => setFilter("Tous")} className="text-primary font-bold hover:underline">
-            Afficher tous les cercles
-          </button>
-        </div>
+          {filteredCercles.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-border rounded-2xl">
+              <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 text-textSecondary">
+                <Filter size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-textPrimary mb-1">{t("circle_empty_title")}</h3>
+              <p className="text-textSecondary text-sm mb-6">{t("circle_empty_desc")}</p>
+              <Link href="/cercles/nouveau">
+                <button className="text-primary font-bold hover:underline">
+                  Créer un cercle
+                </button>
+              </Link>
+            </div>
+          )}
+        </>
       )}
 
       {/* Floating Action Button */}

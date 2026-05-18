@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { LanguageProvider } from "@/contexts/LanguageContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const jakarta = Plus_Jakarta_Sans({ 
   subsets: ["latin"],
@@ -23,9 +26,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${jakarta.variable} ${jetbrains.variable}`}>
-      <body className="font-sans antialiased min-h-screen">
-        {children}
+    <html lang="fr" className={`${jakarta.variable} ${jetbrains.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased min-h-screen" suppressHydrationWarning>
+        <AuthProvider>
+          <LanguageProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              {children}
+            </ThemeProvider>
+          </LanguageProvider>
+        </AuthProvider>
       </body>
     </html>
   );
