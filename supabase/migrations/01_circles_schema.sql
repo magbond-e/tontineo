@@ -93,6 +93,32 @@ ALTER TABLE circles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
+-- 3.5. SECURITY DEFINER HELPER FUNCTIONS FOR RLS (Prevents infinite recursion)
+-- ============================================================
+
+-- Fonction pour vérifier si un utilisateur est membre d'un cercle (bypasse RLS)
+CREATE OR REPLACE FUNCTION public.check_is_circle_member(p_circle_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.memberships 
+    WHERE circle_id = p_circle_id AND user_id = p_user_id AND status IN ('active', 'pending')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Fonction pour vérifier si un utilisateur est l'organisateur d'un cercle (bypasse RLS)
+CREATE OR REPLACE FUNCTION public.check_is_circle_organizer(p_circle_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.circles 
+    WHERE id = p_circle_id AND organizer_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
 -- 4. POLICIES RLS
 -- ============================================================
 
@@ -103,7 +129,7 @@ CREATE POLICY "organizer_manages_circle" ON circles
 -- Circles : Les membres peuvent lire les détails de leur cercle
 CREATE POLICY "members_see_circle" ON circles
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM memberships WHERE circle_id = circles.id AND user_id = auth.uid())
+    public.check_is_circle_member(id, auth.uid())
   );
 
 -- Memberships : Chacun peut voir/gérer ses propres adhésions
@@ -113,11 +139,11 @@ CREATE POLICY "own_membership" ON memberships
 -- Memberships : L'organisateur peut voir et gérer les membres de son cercle
 CREATE POLICY "organizer_manages_memberships" ON memberships
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM circles WHERE id = circle_id AND organizer_id = auth.uid())
+    public.check_is_circle_organizer(circle_id, auth.uid())
   );
 
 -- Memberships : Les membres d'un même cercle peuvent se voir
 CREATE POLICY "co_members_see_memberships" ON memberships
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM memberships m WHERE m.circle_id = memberships.circle_id AND m.user_id = auth.uid())
+    public.check_is_circle_member(circle_id, auth.uid())
   );
