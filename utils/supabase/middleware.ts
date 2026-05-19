@@ -61,11 +61,13 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protect routes based on user session
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname.startsWith("/register") || request.nextUrl.pathname.startsWith("/join");
+  const isAuthRoute = request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname.startsWith("/register") || request.nextUrl.pathname.startsWith("/join") || request.nextUrl.pathname.startsWith("/api/payments/webhook");
+  const isCallbackRoute = request.nextUrl.pathname.startsWith("/auth/callback");
   
   if (
     !user &&
     !isAuthRoute &&
+    !isCallbackRoute &&
     request.nextUrl.pathname !== "/"
   ) {
     // no user, potentially respond by redirecting the user to the login page

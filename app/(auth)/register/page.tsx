@@ -39,6 +39,10 @@ export default function RegisterPage() {
     if (error) {
       setErrorMsg(error.message);
       setIsLoading(false);
+    } else if (data.session === null) {
+      // Confirmation par email requise
+      setErrorMsg("Inscription réussie ! Veuillez vérifier votre boîte mail pour confirmer votre compte avant de vous connecter.");
+      setIsLoading(false);
     } else {
       router.push("/dashboard");
       router.refresh();

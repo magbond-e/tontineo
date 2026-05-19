@@ -80,7 +80,7 @@ export default function LoginPage() {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-sm font-bold text-textPrimary">{t("pwd_label")}</label>
-            <Link href="#" className="text-xs font-bold text-primary hover:underline">{t("pwd_forgot")}</Link>
+            <Link href="/forgot-password" className="text-xs font-bold text-primary hover:underline">{t("pwd_forgot")}</Link>
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-textSecondary">

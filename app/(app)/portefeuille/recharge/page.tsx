@@ -31,29 +31,26 @@ export default function RechargePage() {
     if (!otp || otp.length < 4) return;
     setIsLoading(true);
     
-    // Simuler l'API FedaPay (délai de 2 secondes)
+    // Appeler l'API de recharge sécurisée côté serveur
     setTimeout(async () => {
       try {
         if (!user) {
           setIsLoading(false);
           return;
         }
-        // 1. Ajouter la transaction
-        await supabase.from('wallet_transactions').insert({
-          user_id: user.id,
-          amount: Number(amount),
-          type: 'deposit',
-          status: 'completed',
-          description: 'Recharge via Mobile Money',
-          completed_at: new Date().toISOString()
+
+        const response = await fetch('/api/wallet/recharge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: Number(amount), otp })
         });
 
-        // 2. Mettre à jour le solde
-        const { data: profile } = await supabase.from('profiles').select('wallet_balance').eq('id', user.id).single();
-        if (profile) {
-          await supabase.from('profiles').update({
-            wallet_balance: (profile.wallet_balance || 0) + Number(amount)
-          }).eq('id', user.id);
+        const result = await response.json();
+
+        if (!response.ok) {
+          alert(result.error || "Une erreur est survenue lors de la recharge.");
+          setIsLoading(false);
+          return;
         }
 
         setSuccess(true);
@@ -62,7 +59,6 @@ export default function RechargePage() {
         }, 2000);
       } catch (error) {
         console.error(error);
-      } finally {
         setIsLoading(false);
       }
     }, 1500);

@@ -24,7 +24,7 @@ export default function RetraitPage() {
     setErrorMsg("");
 
     try {
-      const { data: profile } = await supabase.from('profiles').select('wallet_balance, pin_code, failed_pin_attempts, is_locked').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('wallet_balance, is_locked, has_pin').eq('id', user.id).single();
       
       if (!profile) throw new Error("Profil introuvable");
       
@@ -36,47 +36,33 @@ export default function RetraitPage() {
       }
       
       // 2. Vérifier si un PIN existe
-      if (!profile.pin_code) {
+      if (!profile.has_pin) {
         setNoPin(true);
         setIsLoading(false);
         return;
       }
       
-      // 3. Vérifier le PIN saisi
-      if (profile.pin_code !== pin) {
-        const attempts = (profile.failed_pin_attempts || 0) + 1;
-        if (attempts >= 3) {
-          await supabase.from('profiles').update({ failed_pin_attempts: attempts, is_locked: true }).eq('id', user.id);
-          setErrorMsg("Code PIN incorrect. Votre compte est désormais GELÉ par sécurité.");
-        } else {
-          await supabase.from('profiles').update({ failed_pin_attempts: attempts }).eq('id', user.id);
-          setErrorMsg(`Code PIN incorrect. Il vous reste ${3 - attempts} tentative(s).`);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // 4. Vérifier le solde disponible
+      // 3. Vérifier le solde disponible localement
       if (profile.wallet_balance < Number(amount)) {
         setErrorMsg("Solde insuffisant pour effectuer ce retrait.");
         setIsLoading(false);
         return;
       }
 
-      // 5. Tout est bon : Effectuer le retrait
-      await supabase.from('profiles').update({
-        wallet_balance: profile.wallet_balance - Number(amount),
-        failed_pin_attempts: 0 // Réinitialiser les tentatives
-      }).eq('id', user.id);
-
-      await supabase.from('wallet_transactions').insert({
-        user_id: user.id,
-        amount: Number(amount),
-        type: 'withdrawal',
-        status: 'completed',
-        description: 'Retrait vers Mobile Money',
-        completed_at: new Date().toISOString()
+      // 4. Tout est bon : Appeler l'API sécurisée côté serveur
+      const response = await fetch('/api/wallet/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Number(amount), pin })
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setErrorMsg(result.error || "Une erreur est survenue lors du retrait.");
+        setIsLoading(false);
+        return;
+      }
 
       setSuccess(true);
       setTimeout(() => {

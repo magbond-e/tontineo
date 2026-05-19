@@ -5,6 +5,7 @@ import { Users, Coins, Percent, Bell, ArrowUpRight, ArrowDownRight, CheckCircle2
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { createClient } from '@/utils/supabase/client';
+import { OnboardingGuide } from "@/components/OnboardingGuide";
 
 export default function DashboardPage() {
   const { t } = useLanguage();
@@ -198,6 +199,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 relative">
+      <OnboardingGuide />
       
       {/* Transaction Modal Details */}
       {selectedTx && (
