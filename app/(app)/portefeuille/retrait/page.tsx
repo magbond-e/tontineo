@@ -133,6 +133,20 @@ export default function RetraitPage() {
             />
             <span className="absolute right-5 top-1/2 -translate-y-1/2 text-textSecondary font-bold">FCFA</span>
           </div>
+          
+          {amount && Number(amount) > 0 && (
+            <div className="mt-4 p-4 bg-primaryLight/30 border border-primary/20 rounded-xl space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-textSecondary">Frais de plateforme (6%)</span>
+                <span className="font-bold text-textPrimary font-mono">-{Math.ceil(Number(amount) * 0.06).toLocaleString('fr-FR')} FCFA</span>
+              </div>
+              <div className="h-px bg-border/50 my-2"></div>
+              <div className="flex justify-between text-sm">
+                <span className="font-bold text-textPrimary">Montant net reçu sur Momo</span>
+                <span className="font-bold text-success font-mono">{Math.floor(Number(amount) * 0.94).toLocaleString('fr-FR')} FCFA</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

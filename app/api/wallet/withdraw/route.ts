@@ -81,15 +81,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Erreur lors de la mise à jour du solde" }, { status: 500 });
     }
 
+    // Calcul des frais (6%)
+    const feeAmount = Math.ceil(parsedAmount * 0.06);
+    const netPayout = Math.floor(parsedAmount - feeAmount);
+
     // 5. Enregistrer la transaction de retrait complétée
     const { error: txErr } = await supabaseAdmin
       .from("wallet_transactions")
       .insert({
         user_id: user.id,
-        amount: parsedAmount,
+        amount: parsedAmount, // On trace le montant total débité
         type: "withdrawal",
         status: "completed",
-        description: "Retrait de portefeuille vers Mobile Money",
+        description: `Retrait vers Mobile Money (Reçu: ${netPayout} FCFA, Frais: ${feeAmount} FCFA)`,
         completed_at: new Date().toISOString()
       });
 
