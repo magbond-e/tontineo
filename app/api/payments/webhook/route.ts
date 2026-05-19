@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     // Configurer FedaPay de manière sécurisée en backend
     const apiKey = process.env.FEDAPAY_SECRET_KEY || 'sk_sandbox_YOUR_FEDAPAY_KEY';
     FedaPay.setApiKey(apiKey);
-    FedaPay.setEnvironment(process.env.NODE_ENV === 'production' ? 'live' : 'sandbox');
+    FedaPay.setEnvironment(apiKey.startsWith('sk_live') ? 'live' : 'sandbox');
 
     // Sécurité Absolue : Interroger directement le serveur FedaPay pour vérifier la transaction
     let verifiedTx;
