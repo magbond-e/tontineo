@@ -48,6 +48,8 @@ export default function ParametresPage() {
   const [isPinSaving, setIsPinSaving] = useState(false);
   const [pinSuccess, setPinSuccess] = useState("");
   const [pinError, setPinError] = useState("");
+  const [hasPin, setHasPin] = useState(false);
+  const [oldPin, setOldPin] = useState("");
 
   const supabase = createClient();
 
@@ -79,6 +81,7 @@ export default function ParametresPage() {
           if (profile.wa_invites_enabled !== null) setWaInvites(profile.wa_invites_enabled);
           if (profile.sms_enabled !== null) setSmsEnabled(profile.sms_enabled);
           if (profile.email_enabled !== null) setEmailEnabled(profile.email_enabled);
+          if (profile.has_pin !== undefined) setHasPin(profile.has_pin);
         }
       }
     };
@@ -129,6 +132,10 @@ export default function ParametresPage() {
   };
 
   const handleSavePin = async () => {
+    if (hasPin && !oldPin) {
+      setPinError("Veuillez saisir votre ancien code PIN.");
+      return;
+    }
     if (pinCode.length !== 4 && pinCode.length !== 6) {
       setPinError("Le code PIN doit faire 4 ou 6 chiffres.");
       return;
@@ -141,20 +148,34 @@ export default function ParametresPage() {
 
     setIsPinSaving(true);
     setPinError("");
+    setPinSuccess("");
     
-    const { error } = await supabase.from('profiles').update({
-      pin_code: pinCode
-    }).eq('id', user.id);
+    try {
+      const res = await fetch("/api/profile/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          oldPin: hasPin ? oldPin : undefined,
+          newPin: pinCode,
+        }),
+      });
 
-    setIsPinSaving(false);
+      const data = await res.json();
+      setIsPinSaving(false);
 
-    if (error) {
-      setPinError("Erreur lors de la sauvegarde du PIN.");
-    } else {
-      setPinSuccess("Code PIN sauvegardé avec succès !");
-      setPinCode("");
-      setPinConfirm("");
-      setTimeout(() => setPinSuccess(""), 4000);
+      if (!res.ok || data.error) {
+        setPinError(data.error || "Erreur lors de la sauvegarde du PIN.");
+      } else {
+        setPinSuccess(data.message || "Code PIN configuré avec succès !");
+        setHasPin(true);
+        setOldPin("");
+        setPinCode("");
+        setPinConfirm("");
+        setTimeout(() => setPinSuccess(""), 4000);
+      }
+    } catch (err) {
+      setIsPinSaving(false);
+      setPinError("Une erreur réseau est survenue.");
     }
   };
 
@@ -362,8 +383,23 @@ export default function ParametresPage() {
                 <p className="text-xs text-textSecondary -mt-3">Configurez votre code secret pour sécuriser toutes vos opérations financières.</p>
                 
                 <div className="space-y-4">
+                  {hasPin && (
+                    <div>
+                      <label className="block text-sm font-bold text-textPrimary mb-1.5">Ancien code PIN</label>
+                      <input 
+                        type="password" 
+                        maxLength={6}
+                        value={oldPin} 
+                        onChange={(e) => setOldPin(e.target.value)}
+                        placeholder="••••"
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-xl font-bold text-textPrimary tracking-[0.5em] text-center font-mono" 
+                      />
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-sm font-bold text-textPrimary mb-1.5">Nouveau code PIN (4 ou 6 chiffres)</label>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">
+                      {hasPin ? "Nouveau code PIN (4 ou 6 chiffres)" : "Code PIN (4 ou 6 chiffres)"}
+                    </label>
                     <input 
                       type="password" 
                       maxLength={6}
@@ -374,7 +410,9 @@ export default function ParametresPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-textPrimary mb-1.5">Confirmer le code PIN</label>
+                    <label className="block text-sm font-bold text-textPrimary mb-1.5">
+                      {hasPin ? "Confirmer le nouveau code PIN" : "Confirmer le code PIN"}
+                    </label>
                     <input 
                       type="password" 
                       maxLength={6}
@@ -390,11 +428,11 @@ export default function ParametresPage() {
 
                   <button 
                     onClick={handleSavePin}
-                    disabled={isPinSaving || !pinCode || !pinConfirm}
+                    disabled={isPinSaving || !pinCode || !pinConfirm || (hasPin && !oldPin)}
                     className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
                   >
                     {isPinSaving ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
-                    {isPinSaving ? "Enregistrement..." : "Enregistrer le PIN"}
+                    {isPinSaving ? "Enregistrement..." : hasPin ? "Modifier le PIN" : "Enregistrer le PIN"}
                   </button>
                 </div>
               </div>

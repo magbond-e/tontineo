@@ -37,9 +37,6 @@ export default function MemberDashboardPage() {
         const hasPayments = payments && payments.length > 0;
 
         if (!hasEvents && !hasPayments) {
-          if (profile && profile.trust_score !== 50) {
-            await supabase.from('profiles').update({ trust_score: 50 }).eq('id', user.id);
-          }
           setTrustScore(50);
         } else if (profile) {
           setTrustScore(Math.min(100, profile.trust_score || 50));
