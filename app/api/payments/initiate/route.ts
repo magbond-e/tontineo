@@ -22,10 +22,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Paramètres manquants pour la cotisation' }, { status: 400 });
     }
 
-    // Configurer FedaPay (Utilisation de Sandbox par défaut si pas de clé de production)
+    // Configurer FedaPay (Détection automatique de l'environnement via la clé)
     const apiKey = process.env.FEDAPAY_SECRET_KEY || 'sk_sandbox_YOUR_FEDAPAY_KEY';
     FedaPay.setApiKey(apiKey);
-    FedaPay.setEnvironment(process.env.NODE_ENV === 'production' ? 'live' : 'sandbox');
+    FedaPay.setEnvironment(apiKey.startsWith('sk_live') ? 'live' : 'sandbox');
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     
