@@ -40,3 +40,5 @@ tontineo.md
 
 # private docs
 /docs
+.vercel
+.env*.local
