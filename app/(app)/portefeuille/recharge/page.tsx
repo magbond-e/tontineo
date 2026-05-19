@@ -1,67 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Plus, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function RechargePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
-  const supabase = createClient();
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [step, setStep] = useState(1);
-  const [otp, setOtp] = useState("");
 
-  const handleInitRecharge = () => {
+  useEffect(() => {
+    if (searchParams.get("payment") === "success") {
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/portefeuille');
+      }, 3000);
+    }
+  }, [searchParams, router]);
+
+  const handleInitRecharge = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0 || !user) return;
     setIsLoading(true);
-    // Simuler l'envoi du prompt sur le téléphone
-    setTimeout(() => {
-      setIsLoading(false);
-      setStep(2);
-    }, 1500);
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp || otp.length < 4) return;
-    setIsLoading(true);
     
-    // Appeler l'API de recharge sécurisée côté serveur
-    setTimeout(async () => {
-      try {
-        if (!user) {
-          setIsLoading(false);
-          return;
-        }
+    try {
+      const response = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          amount: Number(amount), 
+          type: 'wallet_recharge' 
+        })
+      });
 
-        const response = await fetch('/api/wallet/recharge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: Number(amount), otp })
-        });
+      const result = await response.json();
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          alert(result.error || "Une erreur est survenue lors de la recharge.");
-          setIsLoading(false);
-          return;
-        }
-
-        setSuccess(true);
-        setTimeout(() => {
-          router.push('/portefeuille');
-        }, 2000);
-      } catch (error) {
-        console.error(error);
+      if (!response.ok) {
+        alert(result.error || "Une erreur est survenue lors de l'initialisation.");
         setIsLoading(false);
+        return;
       }
-    }, 1500);
+
+      if (result.url) {
+        // Redirection vers la page de paiement sécurisée FedaPay
+        window.location.href = result.url;
+      }
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+    }
   };
 
   if (success) {
@@ -70,8 +61,8 @@ export default function RechargePage() {
         <div className="w-20 h-20 bg-success/10 text-success rounded-full flex items-center justify-center mb-6 animate-in zoom-in-50">
           <CheckCircle2 size={40} />
         </div>
-        <h2 className="text-2xl font-extrabold text-textPrimary mb-2">Recharge réussie !</h2>
-        <p className="text-textSecondary mb-8">Votre solde a été mis à jour avec succès.</p>
+        <h2 className="text-2xl font-extrabold text-textPrimary mb-2">Recharge initiée avec succès !</h2>
+        <p className="text-textSecondary mb-8">Votre solde sera mis à jour dès la validation de FedaPay.</p>
         <Loader2 className="animate-spin text-primary" />
       </div>
     );
@@ -90,70 +81,30 @@ export default function RechargePage() {
       </div>
 
       <div className="bg-surface rounded-3xl border border-border p-6 md:p-8 shadow-sm">
-        {step === 1 ? (
-          <>
-            <div className="mb-8">
-              <label className="block text-sm font-bold text-textPrimary mb-2">Montant à recharger (FCFA)</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  value={amount} 
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Ex: 10000"
-                  className="w-full px-5 py-4 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-xl font-bold text-textPrimary font-mono" 
-                />
-                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-textSecondary font-bold">FCFA</span>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleInitRecharge}
-              disabled={isLoading || !amount || Number(amount) <= 0}
-              className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
-              {isLoading ? "Envoi de la requête..." : "Payer via Momo"}
-            </button>
-          </>
-        ) : (
-          <div className="animate-in slide-in-from-right-4">
-            <div className="mb-6 text-center">
-              <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <Loader2 className="animate-spin" size={30} />
-              </div>
-              <h3 className="font-bold text-lg text-textPrimary">Validation requise</h3>
-              <p className="text-sm text-textSecondary mt-2">Veuillez consulter votre téléphone et entrer le code secret de validation Momo reçu par SMS pour autoriser le prélèvement.</p>
-            </div>
-            
-            <div className="mb-8">
-              <input 
-                type="text" 
-                maxLength={4}
-                value={otp} 
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="••••"
-                className="w-full px-5 py-4 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-2xl font-bold text-textPrimary tracking-[1em] text-center font-mono" 
-              />
-            </div>
-
-            <button 
-              onClick={handleVerifyOtp}
-              disabled={isLoading || otp.length < 4}
-              className="w-full py-4 bg-textPrimary hover:bg-black text-white font-bold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
-              {isLoading ? "Vérification..." : "Confirmer le paiement"}
-            </button>
-            <button 
-              onClick={() => setStep(1)}
-              disabled={isLoading}
-              className="w-full py-3 text-textSecondary hover:text-textPrimary font-bold text-sm mt-2 transition-colors disabled:opacity-50"
-            >
-              Annuler
-            </button>
+        <div className="mb-8">
+          <label className="block text-sm font-bold text-textPrimary mb-2">Montant à recharger (FCFA)</label>
+          <div className="relative">
+            <input 
+              type="number" 
+              value={amount} 
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Ex: 10000"
+              className="w-full px-5 py-4 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-xl font-bold text-textPrimary font-mono" 
+            />
+            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-textSecondary font-bold">FCFA</span>
           </div>
-        )}
+        </div>
+
+        <button 
+          onClick={handleInitRecharge}
+          disabled={isLoading || !amount || Number(amount) <= 0}
+          className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
+          {isLoading ? "Redirection vers FedaPay..." : "Payer via Mobile Money"}
+        </button>
       </div>
     </div>
   );
 }
+

@@ -12,10 +12,14 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { circle_id, cycle_id, amount, phone } = body;
+    const { circle_id, cycle_id, amount, phone, type } = body;
 
-    if (!circle_id || !cycle_id || !amount) {
-      return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 });
+    if (!amount) {
+      return NextResponse.json({ error: 'Montant manquant' }, { status: 400 });
+    }
+
+    if (!type && (!circle_id || !cycle_id)) {
+      return NextResponse.json({ error: 'Paramètres manquants pour la cotisation' }, { status: 400 });
     }
 
     // Configurer FedaPay (Utilisation de Sandbox par défaut si pas de clé de production)
@@ -25,22 +29,33 @@ export async function POST(req: Request) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     
+    // Configuration dynamique selon le type de paiement
+    const isRecharge = type === 'wallet_recharge';
+    const description = isRecharge ? 'Recharge de Portefeuille Tontineo' : `Cotisation Tontine - Cercle ${circle_id}`;
+    const callbackUrl = isRecharge ? `${appUrl}/portefeuille/recharge?payment=success` : `${appUrl}/cercles/${circle_id}?payment=success`;
+    
+    const customMetadata: any = {
+      user_id: user.id
+    };
+    if (isRecharge) {
+      customMetadata.type = 'wallet_recharge';
+    } else {
+      customMetadata.circle_id = circle_id;
+      customMetadata.cycle_id = cycle_id;
+    }
+
     // Création de la transaction FedaPay
     const transaction = await Transaction.create({
-      description: `Cotisation Tontine - Cercle ${circle_id}`,
+      description: description,
       amount: amount,
       currency: { iso: 'XOF' },
-      callback_url: `${appUrl}/cercles/${circle_id}?payment=success`,
+      callback_url: callbackUrl,
       customer: {
         email: user.email || 'user@tontineo.com',
         firstname: 'Membre',
         lastname: 'Tontineo'
       },
-      custom_metadata: {
-        circle_id,
-        cycle_id,
-        user_id: user.id
-      }
+      custom_metadata: customMetadata
     });
 
     // Génération du lien de paiement (checkout URL)
