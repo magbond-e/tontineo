@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { ArrowLeft, Plus, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function RechargePage() {
+function RechargeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -46,7 +46,6 @@ export default function RechargePage() {
       }
 
       if (result.url) {
-        // Redirection vers la page de paiement sécurisée FedaPay
         window.location.href = result.url;
       }
     } catch (error) {
@@ -105,6 +104,18 @@ export default function RechargePage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function RechargePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={30} />
+      </div>
+    }>
+      <RechargeContent />
+    </Suspense>
   );
 }
 
