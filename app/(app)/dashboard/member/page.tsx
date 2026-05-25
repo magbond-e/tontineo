@@ -128,9 +128,23 @@ export default function MemberDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-        <p className="text-textSecondary">Chargement de votre espace...</p>
+      <div className="max-w-[1200px] mx-auto space-y-8 animate-pulse">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="w-48 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            <div className="w-64 h-4 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+          <div className="flex flex-col gap-8 h-full">
+            <div className="bg-surface border border-border rounded-2xl p-6 h-64 bg-gray-100 dark:bg-gray-800"></div>
+            <div className="bg-surface border border-border rounded-2xl p-6 h-64 bg-gray-100 dark:bg-gray-800"></div>
+          </div>
+          <div className="flex flex-col gap-8 h-full">
+            <div className="bg-surface border border-border rounded-2xl p-6 h-96 bg-gray-100 dark:bg-gray-800"></div>
+            <div className="bg-surface border border-border rounded-2xl p-6 h-48 bg-gray-100 dark:bg-gray-800"></div>
+          </div>
+        </div>
       </div>
     );
   }

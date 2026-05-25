@@ -23,7 +23,10 @@ export default function CreateCerclePage() {
   const [isCreated, setIsCreated] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState("");
+
+  const PREDEFINED_EMOJIS = ["💰", "🚀", "🎓", "🏠", "✈️"];
 
   const { user } = useAuth();
   const supabase = createClient();
@@ -38,7 +41,16 @@ export default function CreateCerclePage() {
   const handleCreate = async () => {
     if (!user) return;
     setIsSubmitting(true);
+    setErrorMsg(null);
     
+    // Check limits
+    const { count } = await supabase.from('circles').select('*', { count: 'exact', head: true }).eq('organizer_id', user.id);
+    if (count && count >= 2) {
+       setErrorMsg("Vous avez atteint la limite de cercles pour le forfait Essentiel. Veuillez passer au plan Pro.");
+       setIsSubmitting(false);
+       return;
+    }
+
     const potTarget = parseInt(formData.amount || "0") * parseInt(formData.maxMembers || "0");
     
     const { data: circleData, error: circleError } = await supabase
@@ -62,6 +74,7 @@ export default function CreateCerclePage() {
 
     if (circleError) {
       console.error("Error creating circle:", circleError);
+      setErrorMsg("Une erreur est survenue lors de la création du cercle.");
       setIsSubmitting(false);
       return;
     }
@@ -170,6 +183,13 @@ export default function CreateCerclePage() {
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <h3 className="text-xl font-bold text-textPrimary border-b border-border pb-4">Informations Générales</h3>
                   
+                  {errorMsg && (
+                    <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl flex items-start gap-3">
+                      <AlertCircle size={18} className="text-danger mt-0.5 shrink-0" />
+                      <p className="text-sm font-medium text-danger">{errorMsg}</p>
+                    </div>
+                  )}
+                  
                   <div>
                     <label className="block text-sm font-bold text-textPrimary mb-2">Nom du cercle</label>
                     <input 
@@ -182,17 +202,19 @@ export default function CreateCerclePage() {
                   <div>
                     <label className="block text-sm font-bold text-textPrimary mb-2">Emoji de couverture</label>
                     <div className="flex gap-3">
-                      <input 
-                        type="text" 
-                        name="coverEmoji" 
-                        value={formData.coverEmoji}
-                        onChange={handleChange}
-                        maxLength={2}
-                        className="w-16 h-16 text-3xl text-center bg-gray-50 dark:bg-slate-800/80 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm"
-                      />
-                      <div className="flex-1 text-sm text-textSecondary flex items-center bg-gray-50 dark:bg-slate-800/80 rounded-xl px-4 border border-border/50">
-                        Choisissez un emoji qui représente bien votre tontine (ex: 💼, ✈️, 🏠).
-                      </div>
+                      {PREDEFINED_EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => setFormData({...formData, coverEmoji: emoji})}
+                          className={`w-12 h-12 text-2xl flex items-center justify-center rounded-xl border transition-all ${
+                            formData.coverEmoji === emoji 
+                              ? 'border-primary bg-primary/10 ring-2 ring-primary/20 scale-110 shadow-sm' 
+                              : 'border-border bg-gray-50 dark:bg-slate-800/80 hover:bg-gray-100 hover:scale-105'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
                     </div>
                   </div>
 

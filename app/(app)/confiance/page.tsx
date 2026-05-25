@@ -163,23 +163,31 @@ export default function ConfiancePage() {
 
         {/* Benefits & Comparison */}
         <div className="md:col-span-2 space-y-6">
-          {/* Comparison */}
-          <div className="bg-surface border border-border rounded-3xl p-6 shadow-sm flex items-center gap-6">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex flex-shrink-0 items-center justify-center text-primary">
-              <TrendingUp size={28} />
+          {/* Points Rules Explanation */}
+          <div className="bg-surface border border-border rounded-3xl p-6 shadow-sm flex items-start gap-6">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex flex-shrink-0 items-center justify-center text-primary mt-1">
+              <ShieldCheck size={28} />
             </div>
             <div>
-              <h3 className="font-bold text-textPrimary mb-1">Au-dessus de la moyenne</h3>
-              <p className="text-sm text-textSecondary mb-3">La moyenne de la communauté est de <strong>68</strong>.</p>
-              
-              <div className="relative h-2 w-full bg-gray-100 dark:bg-slate-800 rounded-full mt-6">
-                <div className="absolute top-0 left-0 h-full bg-border rounded-full" style={{ width: '68%' }}></div>
-                <div className="absolute top-0 left-0 h-full bg-primary rounded-full shadow-sm shadow-primary/50" style={{ width: `${score}%` }}></div>
-                {/* Marker Moyenne */}
-                <div className="absolute top-4 -translate-x-1/2 text-[10px] font-bold text-textSecondary" style={{ left: '68%' }}>Moyenne</div>
-                {/* Marker You */}
-                <div className="absolute -top-6 -translate-x-1/2 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded" style={{ left: `${score}%` }}>Vous</div>
-              </div>
+              <h3 className="font-bold text-textPrimary mb-3">Comment gagner des points ?</h3>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-2 text-sm text-textSecondary">
+                  <CheckCircle2 size={16} className="text-success" />
+                  Paiement à l'heure : <strong className="text-success ml-1">+5 pts</strong>
+                </li>
+                <li className="flex items-center gap-2 text-sm text-textSecondary">
+                  <CheckCircle2 size={16} className="text-success" />
+                  Tirage réussi en tant qu'organisateur : <strong className="text-success ml-1">+10 pts</strong>
+                </li>
+                <li className="flex items-center gap-2 text-sm text-textSecondary">
+                  <AlertCircle size={16} className="text-danger" />
+                  Retard de paiement : <strong className="text-danger ml-1">-10 pts</strong> par jour
+                </li>
+                <li className="flex items-center gap-2 text-sm text-textSecondary">
+                  <AlertCircle size={16} className="text-danger" />
+                  Avertissement ou litige : <strong className="text-danger ml-1">-20 pts</strong>
+                </li>
+              </ul>
             </div>
           </div>
 

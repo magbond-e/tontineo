@@ -53,9 +53,22 @@ export default function LoginPage() {
       </div>
 
       {errorMsg && (
-        <div className="mb-6 p-3 bg-danger/10 border border-danger/20 rounded-xl flex items-start gap-3">
-          <AlertCircle size={18} className="text-danger mt-0.5 shrink-0" />
-          <p className="text-sm font-medium text-danger">{errorMsg}</p>
+        <div className="mb-6 p-3 bg-danger/10 border border-danger/20 rounded-xl flex flex-col gap-2">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={18} className="text-danger mt-0.5 shrink-0" />
+            <p className="text-sm font-medium text-danger">{errorMsg}</p>
+          </div>
+          {errorMsg.toLowerCase().includes("email not confirmed") && (
+            <button
+              onClick={async () => {
+                await supabase.auth.resend({ type: 'signup', email });
+                setErrorMsg("Email de confirmation renvoyé ! Vérifiez votre boîte de réception.");
+              }}
+              className="text-xs font-bold text-danger hover:underline self-end"
+            >
+              Renvoyer l'email de confirmation
+            </button>
+          )}
         </div>
       )}
 

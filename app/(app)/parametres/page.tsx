@@ -97,22 +97,33 @@ export default function ParametresPage() {
   }, [user, userProfile, supabase]);
 
   const handleKycSubmit = async () => {
-    if (!frontFile || !backFile) {
-      setKycMessage("Veuillez sélectionner le recto et le verso.");
+    if (!frontFile) {
+      setKycMessage("Veuillez sélectionner le document recto.");
+      return;
+    }
+    if (docType === 'permis' && !backFile) {
+      setKycMessage("Veuillez sélectionner le verso pour le permis.");
       return;
     }
     setIsUploadingKyc(true);
     setKycMessage("");
 
     try {
-      // Simulation of file upload logic
-      // In a real app we would use supabase.storage.from('kyc').upload(...)
-      await new Promise(r => setTimeout(r, 1500));
+      const formData = new FormData();
+      formData.append('docType', docType);
+      formData.append('frontFile', frontFile);
+      if (backFile && docType === 'permis') {
+        formData.append('backFile', backFile);
+      }
 
-      const { error } = await supabase.from('profiles').update({ kyc_status: 'pending' }).eq('id', user?.id);
+      const res = await fetch('/api/profile/kyc', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
 
-      if (error) {
-        setKycMessage("Erreur lors de la soumission: " + error.message);
+      if (!res.ok || data.error) {
+        setKycMessage("Erreur lors de la soumission: " + (data.error || "Erreur inconnue"));
       } else {
         setKycStatus("pending");
         setKycMessage("Documents soumis avec succès. En attente de validation.");
@@ -262,11 +273,37 @@ export default function ParametresPage() {
     setLang(newLang);
   };
 
+  const handleUpgrade = async (plan: 'premium' | 'business') => {
+    if (userPlan === plan) return;
+    setIsSaving(true);
+    setTimeout(async () => {
+      alert("Paiement FedaPay simulé avec succès pour l'abonnement " + plan.toUpperCase());
+      if (user?.id) {
+        await supabase.from('profiles').update({ current_plan: plan }).eq('id', user.id);
+        setUserPlan(plan);
+      }
+      setIsSaving(false);
+    }, 1500);
+  };
+
+  const handleCancelPlan = async () => {
+    if (!window.confirm("Voulez-vous vraiment résilier votre abonnement et repasser au plan Essentiel (Gratuit) ?")) return;
+    setIsSaving(true);
+    setTimeout(async () => {
+      if (user?.id) {
+        await supabase.from('profiles').update({ current_plan: 'free' }).eq('id', user.id);
+        setUserPlan('free');
+      }
+      setIsSaving(false);
+      alert("Abonnement résilié avec succès.");
+    }, 1000);
+  };
+
   if (!mounted) return null;
 
   const tabs = [
     { id: "profil", label: t("tab_profile"), icon: User },
-    { id: "securite", label: "Sécurité", icon: Lock },
+    { id: "securite", label: t("tab_security"), icon: Lock },
     { id: "kyc", label: t("tab_kyc"), icon: ShieldCheck },
     { id: "notifications", label: t("tab_notif"), icon: Bell },
     { id: "abonnement", label: t("tab_plan"), icon: Crown },
@@ -415,13 +452,13 @@ export default function ParametresPage() {
               
               {/* Formulaire */}
               <div className="bg-surface border border-border/80 rounded-2xl p-6 shadow-sm space-y-5">
-                <h2 className="text-xl font-bold text-textPrimary">Sécurité du compte</h2>
-                <p className="text-xs text-textSecondary -mt-3">Configurez votre code secret pour sécuriser toutes vos opérations financières.</p>
+                <h2 className="text-xl font-bold text-textPrimary">{t("sec_title")}</h2>
+                <p className="text-xs text-textSecondary -mt-3">{t("sec_desc")}</p>
                 
                 <div className="space-y-4">
                   {hasPin && (
                     <div>
-                      <label className="block text-sm font-bold text-textPrimary mb-1.5">Ancien code PIN</label>
+                      <label className="block text-sm font-bold text-textPrimary mb-1.5">{t("sec_old_pin")}</label>
                       <input 
                         type="password" 
                         maxLength={6}
@@ -434,7 +471,7 @@ export default function ParametresPage() {
                   )}
                   <div>
                     <label className="block text-sm font-bold text-textPrimary mb-1.5">
-                      {hasPin ? "Nouveau code PIN (4 ou 6 chiffres)" : "Code PIN (4 ou 6 chiffres)"}
+                      {hasPin ? t("sec_new_pin") : t("sec_pin")}
                     </label>
                     <input 
                       type="password" 
@@ -447,7 +484,7 @@ export default function ParametresPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-textPrimary mb-1.5">
-                      {hasPin ? "Confirmer le nouveau code PIN" : "Confirmer le code PIN"}
+                      {hasPin ? t("sec_confirm_new") : t("sec_confirm_pin")}
                     </label>
                     <input 
                       type="password" 
@@ -468,7 +505,7 @@ export default function ParametresPage() {
                     className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
                   >
                     {isPinSaving ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
-                    {isPinSaving ? "Enregistrement..." : hasPin ? "Modifier le PIN" : "Enregistrer le PIN"}
+                    {isPinSaving ? t("sec_saving") : hasPin ? t("sec_modify_pin") : t("sec_save_pin")}
                   </button>
                 </div>
               </div>
@@ -481,23 +518,23 @@ export default function ParametresPage() {
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 shadow-sm">
                     <ShieldCheck size={26} />
                   </div>
-                  <h3 className="font-bold text-textPrimary mb-2">Pourquoi un code PIN ?</h3>
+                  <h3 className="font-bold text-textPrimary mb-2">{t("sec_why")}</h3>
                   <p className="text-sm text-textSecondary leading-relaxed mb-4">
-                    Le code PIN de sécurité de Tontineo garantit que vous seul pouvez autoriser les actions sensibles de votre portefeuille :
+                    {t("sec_why_desc")}
                   </p>
                   
                   <ul className="space-y-2.5">
                     <li className="flex items-start gap-2.5 text-xs text-textSecondary">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></span>
-                      <span>Validation obligatoire de tous les retraits Momo.</span>
+                      <span>{t("sec_reason1")}</span>
                     </li>
                     <li className="flex items-start gap-2.5 text-xs text-textSecondary">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></span>
-                      <span>Sécurisation de vos transferts entre membres.</span>
+                      <span>{t("sec_reason2")}</span>
                     </li>
                     <li className="flex items-start gap-2.5 text-xs text-textSecondary">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5"></span>
-                      <span>Protection contre l'accès non autorisé à vos fonds.</span>
+                      <span>{t("sec_reason3")}</span>
                     </li>
                   </ul>
                 </div>
@@ -505,7 +542,7 @@ export default function ParametresPage() {
                 <div className="mt-6 p-3 bg-white dark:bg-slate-800 border border-border rounded-xl flex items-start gap-2.5">
                   <span className="text-lg">💡</span>
                   <p className="text-[11px] text-textSecondary leading-normal">
-                    <strong>Conseil :</strong> Évitez les combinaisons simples (ex: 1234 ou 0000). Ne partagez jamais votre code secret.
+                    <strong>{t("sec_tip")}</strong> {t("sec_tip_desc")}
                   </p>
                 </div>
               </div>
@@ -554,10 +591,10 @@ export default function ParametresPage() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className={`grid grid-cols-1 gap-6 ${docType === 'permis' ? 'md:grid-cols-2' : ''}`}>
                   {/* Upload Recto */}
-                  <label className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
-                    <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setFrontFile(e.target.files?.[0] || null)} />
+                  <label htmlFor="front-upload" className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                    <input id="front-upload" type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setFrontFile(e.target.files?.[0] || null)} />
                     <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                       {frontFile ? <CheckCircle2 size={28} /> : <FileText size={28} />}
                     </div>
@@ -565,15 +602,17 @@ export default function ParametresPage() {
                     <p className="text-xs text-textSecondary">{!frontFile && <>{t("upload_hint")}<br/>{t("upload_format")}</>}</p>
                   </label>
                   
-                  {/* Upload Verso */}
-                  <label className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
-                    <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setBackFile(e.target.files?.[0] || null)} />
-                    <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      {backFile ? <CheckCircle2 size={28} /> : <UploadCloud size={28} />}
-                    </div>
-                    <h4 className="font-bold text-textPrimary mb-1">{backFile ? backFile.name : t("back")}</h4>
-                    <p className="text-xs text-textSecondary">{!backFile && <>{t("back_hint")}<br/>{t("upload_format")}</>}</p>
-                  </label>
+                  {/* Upload Verso - Uniquement pour le permis selon les instructions */}
+                  {docType === 'permis' && (
+                    <label htmlFor="back-upload" className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                      <input id="back-upload" type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setBackFile(e.target.files?.[0] || null)} />
+                      <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        {backFile ? <CheckCircle2 size={28} /> : <UploadCloud size={28} />}
+                      </div>
+                      <h4 className="font-bold text-textPrimary mb-1">{backFile ? backFile.name : t("back")}</h4>
+                      <p className="text-xs text-textSecondary">{!backFile && <>{t("back_hint")}<br/>{t("upload_format")}</>}</p>
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -591,7 +630,7 @@ export default function ParametresPage() {
               <div className="pt-4 flex justify-end">
                 <button 
                   onClick={handleKycSubmit}
-                  disabled={!frontFile || !backFile || isUploadingKyc || kycStatus === 'pending' || kycStatus === 'verified'}
+                  disabled={!frontFile || (docType === 'permis' && !backFile) || isUploadingKyc || kycStatus === 'pending' || kycStatus === 'verified'}
                   className="w-full md:w-auto px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
                 >
                   {isUploadingKyc && <Loader2 size={18} className="animate-spin" />}
@@ -745,11 +784,28 @@ export default function ParametresPage() {
                   <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Tableau de bord avancé</div>
                   <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Support prioritaire H24</div>
                 </div>
-                <button className={`w-full py-2.5 font-bold rounded-xl transition-all ${userPlan === 'business' ? 'bg-gray-100 dark:bg-slate-800 text-textSecondary cursor-default' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-border text-textPrimary'}`}>
+                <button 
+                  onClick={() => handleUpgrade('business')}
+                  disabled={userPlan === 'business' || isSaving}
+                  className={`w-full py-2.5 font-bold rounded-xl transition-all ${userPlan === 'business' ? 'bg-gray-100 dark:bg-slate-800 text-textSecondary cursor-default' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-border text-textPrimary'}`}
+                >
                   {userPlan === 'business' ? t("current_plan") : t("upgrade_biz")}
                 </button>
               </div>
             </div>
+            
+            {userPlan !== 'free' && (
+              <div className="mt-8 pt-8 border-t border-border flex flex-col items-center">
+                <p className="text-sm text-textSecondary mb-4">Vous souhaitez revenir au plan Essentiel ?</p>
+                <button 
+                  onClick={handleCancelPlan}
+                  disabled={isSaving}
+                  className="px-6 py-2.5 bg-danger/10 text-danger font-bold rounded-xl hover:bg-danger/20 transition-all text-sm"
+                >
+                  {isSaving ? "Traitement..." : "Résilier mon abonnement actuel"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

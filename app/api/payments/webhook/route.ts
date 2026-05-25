@@ -110,7 +110,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: paymentError.message }, { status: 500 });
     }
 
-    // 2. Incrémenter le pot du cercle directement
+    // 2. Incrémenter le pot du cercle et le pot du cycle
     const { data: currentCircle } = await supabaseAdmin
       .from('circles')
       .select('pot_collected')
@@ -118,14 +118,23 @@ export async function POST(req: Request) {
       .single();
 
     if (currentCircle) {
-      const { error: cycleError } = await supabaseAdmin
+      await supabaseAdmin
         .from('circles')
         .update({ pot_collected: Number(currentCircle.pot_collected || 0) + Number(amount) })
         .eq('id', circle_id);
+    }
 
-      if (cycleError) {
-        console.error('Erreur incrémentation pot:', cycleError);
-      }
+    const { data: currentCycle } = await supabaseAdmin
+      .from('cycles')
+      .select('pot_amount')
+      .eq('id', cycle_id)
+      .single();
+
+    if (currentCycle) {
+      await supabaseAdmin
+        .from('cycles')
+        .update({ pot_amount: Number(currentCycle.pot_amount || 0) + Number(amount) })
+        .eq('id', cycle_id);
     }
 
     // 3. Score de confiance: Ajouter +5 points pour paiement réussi

@@ -15,6 +15,7 @@ export default function PortefeuillePage() {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [autoWithdraw, setAutoWithdraw] = useState(false);
 
   useEffect(() => {
     const fetchWallet = async () => {
@@ -22,11 +23,14 @@ export default function PortefeuillePage() {
       try {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('wallet_balance')
+          .select('wallet_balance, auto_withdraw')
           .eq('id', user.id)
           .single();
         
-        if (profile) setBalance(profile.wallet_balance || 0);
+        if (profile) {
+          setBalance(profile.wallet_balance || 0);
+          setAutoWithdraw(profile.auto_withdraw || false);
+        }
 
         const { data: walletTxs } = await supabase
           .from('wallet_transactions')
@@ -84,9 +88,27 @@ export default function PortefeuillePage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-        <p className="text-textSecondary">Chargement du portefeuille...</p>
+      <div className="max-w-[800px] mx-auto space-y-8 animate-pulse">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+          <div className="space-y-2">
+            <div className="w-32 h-6 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+            <div className="w-48 h-4 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+          </div>
+        </div>
+        
+        <div className="w-full h-16 bg-gray-200 dark:bg-gray-700 rounded-xl mb-6"></div>
+
+        <div className="bg-surface rounded-3xl border border-border p-8 shadow-sm text-center">
+          <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-4"></div>
+          <div className="w-32 h-4 bg-gray-200 dark:bg-gray-700 mx-auto rounded-md mb-2"></div>
+          <div className="w-48 h-10 bg-gray-200 dark:bg-gray-700 mx-auto rounded-md mb-8"></div>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+            <div className="w-full sm:w-auto flex-1 h-16 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+            <div className="w-full sm:w-auto flex-1 h-16 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -118,15 +140,31 @@ export default function PortefeuillePage() {
           {balance.toLocaleString('fr-FR')} FCFA
         </h2>
         
-        <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto relative z-10">
-          <Link href="/portefeuille/recharge" className="flex-1">
-            <button className="w-full py-3 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-textPrimary font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
-              <Plus size={18} /> Recharger
-            </button>
-          </Link>
-          <Link href="/portefeuille/retrait" className="flex-1">
-            <button className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-colors shadow-md shadow-primary/20 flex items-center justify-center gap-2">
-              <ArrowRightLeft size={18} /> Retirer
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full relative z-10">
+          <label className="flex items-center gap-3 cursor-pointer p-4 bg-gray-50 dark:bg-slate-800 border border-border rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-slate-700 w-full sm:w-auto flex-1">
+            <div className="relative flex items-center justify-center">
+              <input 
+                type="checkbox" 
+                checked={autoWithdraw} 
+                onChange={async (e) => {
+                  const val = e.target.checked;
+                  setAutoWithdraw(val);
+                  if (user) {
+                    await supabase.from('profiles').update({ auto_withdraw: val }).eq('id', user.id);
+                  }
+                }}
+                className="peer appearance-none w-10 h-5 bg-gray-200 rounded-full checked:bg-primary transition-all cursor-pointer relative"
+              />
+              <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full peer-checked:translate-x-5 transition-all pointer-events-none"></div>
+            </div>
+            <div className="flex-1 text-left">
+              <span className="block text-sm font-bold text-textPrimary leading-tight">Retrait automatique</span>
+              <span className="block text-xs text-textSecondary mt-0.5">Vers Mobile Money</span>
+            </div>
+          </label>
+          <Link href="/portefeuille/retrait" className="w-full sm:w-auto flex-1">
+            <button className="w-full py-4 sm:py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-colors shadow-md shadow-primary/20 flex items-center justify-center gap-2">
+              <ArrowRightLeft size={18} /> Retirer Manuellement
             </button>
           </Link>
         </div>

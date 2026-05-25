@@ -45,7 +45,7 @@ export function Sidebar() {
                 disabled={isLoggingOut}
                 className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-textPrimary font-bold rounded-xl transition-colors disabled:opacity-50"
               >
-                Annuler
+                {t("cancel")}
               </button>
               <button 
                 onClick={handleLogout}
@@ -55,7 +55,7 @@ export function Sidebar() {
                 {isLoggingOut ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 ) : (
-                  "Confirmer"
+                  t("confirm")
                 )}
               </button>
             </div>
@@ -163,7 +163,7 @@ export function Sidebar() {
               <div className="flex items-center justify-center w-6">
                 <LogOut size={20} className="group-hover:text-danger transition-colors" />
               </div>
-              {!isCollapsed && <span>Déconnexion</span>}
+              {!isCollapsed && <span>{t("nav_logout")}</span>}
             </button>
           </div>
         </nav>

@@ -4,11 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import { Users, Coins, Percent, Bell, ArrowUpRight, ArrowDownRight, CheckCircle2, AlertCircle, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from '@/utils/supabase/client';
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 
 export default function DashboardPage() {
   const { t } = useLanguage();
+  const { userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -25,9 +27,9 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
 
   const stats = [
-    { label: t("dash_total_contributed"), value: `${statsData.totalCotise.toLocaleString('fr-FR')} FCFA`, trend: "En hausse", icon: Coins, color: "text-primary", bg: "bg-primaryLight", trendDown: false },
-    { label: t("dash_active_circles"), value: statsData.cerclesActifs.toString(), trend: "Nouveau", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: false },
-    { label: t("dash_members"), value: statsData.totalMembers.toString(), trend: "Actifs", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: false },
+    { label: t("dash_total_contributed"), value: `${statsData.totalCotise.toLocaleString('fr-FR')} FCFA`, trend: statsData.totalCotise > 0 ? "Actif" : "Nouveau", icon: Coins, color: "text-primary", bg: "bg-primaryLight", trendDown: false },
+    { label: t("dash_active_circles"), value: statsData.cerclesActifs.toString(), trend: statsData.cerclesActifs > 0 ? "En cours" : "Aucun", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: statsData.cerclesActifs === 0 },
+    { label: t("dash_members"), value: statsData.totalMembers.toString(), trend: statsData.totalMembers > 0 ? "Actifs" : "Aucun", icon: Users, color: "text-primary", bg: "bg-primary/10", trendDown: statsData.totalMembers === 0 },
     { label: t("dash_punctuality"), value: statsData.punctuality > 0 ? `${statsData.punctuality}%` : `- %`, trend: statsData.punctuality > 0 ? "Excellent" : "Aucun paiement", trendDown: statsData.punctuality === 0, icon: Percent, color: "text-primary", bg: "bg-primary/10" },
   ];
 
@@ -241,7 +243,7 @@ export default function DashboardPage() {
       {/* Header with Notifications */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">{t("dash_title")}</h1>
+          <h1 className="text-3xl font-extrabold text-textPrimary tracking-tight">Bonjour {userProfile?.name?.split(' ')[0] || "Utilisateur"} 👋</h1>
           <p className="text-textSecondary mt-1">{t("dash_subtitle")}</p>
         </div>
         

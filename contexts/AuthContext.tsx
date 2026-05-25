@@ -78,6 +78,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           avatarUrl: data.avatar_url || user.user_metadata?.avatar_url || "",
           whatsapp: data.whatsapp || user.user_metadata?.whatsapp || "",
         });
+      } else if (error && error.code === 'PGRST116') {
+        // No row found, try creating one
+        const fallbackName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur";
+        const fallbackAvatar = user.user_metadata?.avatar_url || "";
+        const fallbackWhatsapp = user.user_metadata?.whatsapp || "";
+        
+        await supabase.from("profiles").insert({
+          id: user.id,
+          full_name: fallbackName,
+          avatar_url: fallbackAvatar,
+        });
+
+        setProfileData({
+          name: fallbackName,
+          email: user.email || "",
+          avatarUrl: fallbackAvatar,
+          whatsapp: fallbackWhatsapp,
+        });
       } else {
         setProfileData({
           name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur",

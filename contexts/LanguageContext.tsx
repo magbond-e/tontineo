@@ -158,6 +158,26 @@ export const translations = {
     lang_title: "Langue",
     lang_desc: "Sélectionnez la langue de l'interface.",
 
+    // Security
+    tab_security: "Sécurité",
+    sec_title: "Sécurité du compte",
+    sec_desc: "Configurez votre code secret pour sécuriser toutes vos opérations financières.",
+    sec_old_pin: "Ancien code PIN",
+    sec_new_pin: "Nouveau code PIN (4 ou 6 chiffres)",
+    sec_pin: "Code PIN (4 ou 6 chiffres)",
+    sec_confirm_new: "Confirmer le nouveau code PIN",
+    sec_confirm_pin: "Confirmer le code PIN",
+    sec_saving: "Enregistrement...",
+    sec_modify_pin: "Modifier le PIN",
+    sec_save_pin: "Enregistrer le PIN",
+    sec_why: "Pourquoi un code PIN ?",
+    sec_why_desc: "Le code PIN de sécurité de Tontineo garantit que vous seul pouvez autoriser les actions sensibles de votre portefeuille :",
+    sec_reason1: "Validation obligatoire de tous les retraits Momo.",
+    sec_reason2: "Sécurisation de vos transferts entre membres.",
+    sec_reason3: "Protection contre l'accès non autorisé à vos fonds.",
+    sec_tip: "Conseil :",
+    sec_tip_desc: "Évitez les combinaisons simples (ex: 1234 ou 0000). Ne partagez jamais votre code secret.",
+
     // Auth
     back_to_home: "Retour à l'accueil",
     auth_marketing_title: "Gérez vos tontines en toute sécurité et transparence.",
@@ -349,6 +369,26 @@ export const translations = {
     dark: "Dark",
     lang_title: "Language",
     lang_desc: "Select the interface language.",
+
+    // Security
+    tab_security: "Security",
+    sec_title: "Account Security",
+    sec_desc: "Configure your secret PIN to secure all your financial operations.",
+    sec_old_pin: "Old PIN code",
+    sec_new_pin: "New PIN code (4 or 6 digits)",
+    sec_pin: "PIN code (4 or 6 digits)",
+    sec_confirm_new: "Confirm new PIN code",
+    sec_confirm_pin: "Confirm PIN code",
+    sec_saving: "Saving...",
+    sec_modify_pin: "Modify PIN",
+    sec_save_pin: "Save PIN",
+    sec_why: "Why a PIN code?",
+    sec_why_desc: "Tontineo's security PIN ensures only you can authorize sensitive wallet actions:",
+    sec_reason1: "Mandatory validation for all Momo withdrawals.",
+    sec_reason2: "Securing transfers between members.",
+    sec_reason3: "Protection against unauthorized access to your funds.",
+    sec_tip: "Tip:",
+    sec_tip_desc: "Avoid simple combinations (e.g., 1234 or 0000). Never share your secret code.",
 
     // Auth
     back_to_home: "Back to home",

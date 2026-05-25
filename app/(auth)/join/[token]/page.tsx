@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import CharteModal from "@/components/CharteModal";
 
 export default function JoinPage({ params }: { params: { token: string } }) {
   const { t } = useLanguage();
@@ -19,6 +20,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
   const [inviteData, setInviteData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
+  const [showCharte, setShowCharte] = useState(false);
 
   useEffect(() => {
     const fetchCircleInfo = async () => {
@@ -71,15 +73,17 @@ export default function JoinPage({ params }: { params: { token: string } }) {
         circle_id: inviteData.id,
         user_id: user.id,
         role: 'member',
-        status: 'active'
+        status: 'pending'
       });
 
     if (error) {
       console.error("Error joining circle:", error);
-      setError("Une erreur est survenue lors de l'adhésion.");
+      setError("Une erreur est survenue lors de la demande d'adhésion.");
       setIsJoining(false);
     } else {
-      router.push(`/cercles/${inviteData.id}`);
+      // Instead of immediate redirect, we could show an alert or redirect to circle page
+      // where the 'pending' state will be handled.
+      router.push(`/cercles/${inviteData.id}?joined=pending`);
     }
   };
 
@@ -154,8 +158,8 @@ export default function JoinPage({ params }: { params: { token: string } }) {
               onChange={(e) => setAccepted(e.target.checked)}
               className="w-5 h-5 rounded text-primary focus:ring-primary accent-primary cursor-pointer mt-0.5" 
             />
-            <span className="text-xs text-textSecondary leading-snug">
-              J'ai lu et j'accepte la <a href="#" className="text-primary hover:underline">Charte de la Tontine</a>. 
+            <span className="text-xs text-textSecondary leading-snug mt-1">
+              J'ai lu et j'accepte la <button type="button" onClick={() => setShowCharte(true)} className="text-primary hover:underline font-bold">Charte de la Tontine</button>. 
               Je m'engage à payer mes cotisations à temps sous peine de pénalités.
             </span>
           </label>
@@ -179,6 +183,26 @@ export default function JoinPage({ params }: { params: { token: string } }) {
           </p>
         )}
       </div>
+
+      {inviteData && (
+        <CharteModal 
+          isOpen={showCharte}
+          onClose={() => setShowCharte(false)}
+          circle={{
+            name: inviteData.name,
+            amount: inviteData.amount,
+            frequency: inviteData.frequency,
+            penalty: inviteData.late_penalty_pct || 0,
+            drawType: inviteData.draw_type || 'Aléatoire',
+            maxMembers: inviteData.max_members
+          }}
+          onAccept={() => {
+            setAccepted(true);
+            setShowCharte(false);
+          }}
+          hasAccepted={accepted}
+        />
+      )}
     </div>
   );
 }

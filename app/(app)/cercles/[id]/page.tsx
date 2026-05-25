@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Wallet, AlertCircle, CalendarClock, MoreVertical, CheckCircle2, Clock, XCircle, ChevronDown, ChevronUp, History, Info, Smartphone, Loader2, Share2 } from "lucide-react";
+import { Users, Wallet, AlertCircle, CalendarClock, MoreVertical, CheckCircle2, Clock, XCircle, ChevronDown, ChevronUp, History, Info, Smartphone, Loader2, Share2, FileText } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
+import DisputeModal from "@/components/DisputeModal";
+import CharteModal from "@/components/CharteModal";
 
 export default function CercleDetailsPage({ params }: { params: { id: string } }) {
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null);
@@ -21,6 +23,8 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   const [successMessage, setSuccessMessage] = useState("");
   const [hasPaidCurrentCycle, setHasPaidCurrentCycle] = useState(false);
   const [hasFiredWebhook, setHasFiredWebhook] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [showCharte, setShowCharte] = useState(false);
 
   const { user } = useAuth();
   const supabase = createClient();
@@ -222,9 +226,27 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
       const data = await res.json();
       if (data.success) {
         setMembers(members.filter(m => m.user_id !== userId));
-        setCercle(prev => ({ ...prev, currentMembers: prev.currentMembers - 1 }));
+        setCercle((prev: any) => ({ ...prev, currentMembers: prev.currentMembers - 1 }));
       } else {
         alert(data.error || "Erreur lors de l'exclusion");
+      }
+    } catch (e) {
+      alert("Erreur inattendue");
+    }
+  };
+
+  const handleApproveMember = async (userId: string, userName: string) => {
+    try {
+      const res = await fetch('/api/circles/members/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ circle_id: cercle.id, user_id_to_approve: userId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMembers(members.map(m => m.user_id === userId ? { ...m, isPending: false } : m));
+      } else {
+        alert(data.error || "Erreur lors de l'approbation");
       }
     } catch (e) {
       alert("Erreur inattendue");
@@ -306,31 +328,10 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         .eq('circle_id', params.id);
         
       if (membershipsData) {
-        const isUserMember = membershipsData.some(m => m.user_id === user.id);
-
-        // Fetch payments for the current cycle to map status & sum the pot
-        let cyclePayments: any[] = [];
-        let calculatedPot = 0;
-        
-        if (cycleData) {
-          const { data: paymentsData } = await supabase
-            .from('payments')
-            .select('user_id, status, completed_at, amount')
-            .eq('cycle_id', cycleData.id)
-            .eq('status', 'completed');
-            
-          if (paymentsData) {
-            cyclePayments = paymentsData;
-            calculatedPot = paymentsData.reduce((sum, p) => sum + Number(p.amount), 0);
-            if (user) {
-              setHasPaidCurrentCycle(paymentsData.some(p => p.user_id === user.id));
-            }
-          }
-        }
-
         setCercle((prev: any) => ({
           ...prev,
           isMember: isUserMember,
+          isPending: userMembership?.status === 'pending',
           potCollected: calculatedPot
         }));
 
@@ -342,6 +343,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
             name: m.profiles?.full_name || "Utilisateur",
             role: m.role === 'co-organizer' ? 'Organisateur' : 'Membre',
             status: userPayment ? 'Payé' : 'En attente',
+            isPending: m.status === 'pending',
             date: userPayment ? new Date(userPayment.completed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : "-",
             avatar: m.profiles?.full_name ? m.profiles.full_name.substring(0, 2).toUpperCase() : "UT",
             trustScore: m.profiles?.trust_score || 50
@@ -362,9 +364,38 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-        <p className="text-textSecondary">Chargement du cercle...</p>
+      <div className="max-w-[1200px] mx-auto space-y-6 md:space-y-8 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="bg-surface rounded-2xl md:rounded-3xl border border-border overflow-hidden">
+          <div className="h-24 md:h-32 bg-gray-200 dark:bg-gray-700 relative">
+            <div className="absolute -bottom-8 md:-bottom-10 left-6 md:left-8 w-16 h-16 md:w-20 md:h-20 bg-gray-300 dark:bg-gray-600 rounded-2xl border-4 border-surface"></div>
+          </div>
+          <div className="px-5 pt-10 pb-6 md:px-8 md:pt-14 md:pb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="w-full md:w-1/2 space-y-3">
+              <div className="w-2/3 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+              <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+              <div className="w-4/5 h-4 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+            </div>
+            <div className="w-full md:w-auto flex gap-3">
+              <div className="w-32 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+              <div className="w-32 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+          {/* Left Column Skeleton */}
+          <div className="space-y-6">
+            <div className="bg-surface border border-border rounded-2xl p-6 h-64 bg-gray-100 dark:bg-gray-800"></div>
+            <div className="bg-surface border border-border rounded-2xl p-6 h-32 bg-gray-100 dark:bg-gray-800"></div>
+            <div className="bg-surface border border-border rounded-2xl p-6 h-64 bg-gray-100 dark:bg-gray-800"></div>
+          </div>
+          {/* Right Column Skeleton */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-surface border border-border rounded-2xl p-6 h-96 bg-gray-100 dark:bg-gray-800"></div>
+            <div className="bg-surface border border-border rounded-2xl p-6 h-48 bg-gray-100 dark:bg-gray-800"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -408,6 +439,20 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
               Super, fermer
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Si l'utilisateur est en attente */}
+      {cercle.isPending && (
+        <div className="bg-warning/10 border border-warning/20 p-6 rounded-2xl flex flex-col items-center text-center">
+          <Clock className="w-12 h-12 text-warning mb-4" />
+          <h2 className="text-xl font-bold text-textPrimary mb-2">Demande en attente</h2>
+          <p className="text-textSecondary mb-4">Votre demande d'adhésion est en cours d'examen par l'organisateur. Vous recevrez une notification une fois accepté(e).</p>
+          <Link href="/dashboard">
+            <button className="px-6 py-2.5 bg-surface border border-border hover:bg-gray-50 text-textPrimary font-bold rounded-xl shadow-sm transition-all">
+              Retour au Dashboard
+            </button>
+          </Link>
         </div>
       )}
 
@@ -577,23 +622,34 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
               </div>
             </div>
             
-            <div className="mt-6 pt-4 border-t border-border">
-              <a href={`mailto:support@tontineo.app?subject=Litige%20Cercle%20${cercle.id}&body=Bonjour,%20je%20souhaite%20signaler%20un%20problème%20sur%20le%20cercle%20${cercle.name}.`} className="w-full py-2.5 bg-danger/10 hover:bg-danger/20 text-danger font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
+            <div className="mt-6 pt-4 border-t border-border flex flex-col gap-3">
+              <button 
+                onClick={() => setShowCharte(true)} 
+                className="w-full py-2.5 bg-gray-50 border border-border hover:bg-gray-100 text-textPrimary font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+              >
+                <FileText size={16} />
+                Consulter la charte
+              </button>
+              <button 
+                onClick={() => setShowDisputeModal(true)} 
+                className="w-full py-2.5 bg-danger/10 hover:bg-danger/20 text-danger font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+              >
                 <AlertCircle size={16} />
                 Signaler un problème / Litige
-              </a>
+              </button>
             </div>
           </div>
         </div>
 
         {/* Right Column: Members & History */}
+        {!cercle.isPending && (
         <div className="lg:col-span-2 flex flex-col gap-6">
           
           {/* Cycle Actuel - Membres */}
           <div className="bg-surface border border-border rounded-2xl md:rounded-3xl shadow-sm overflow-hidden flex flex-col shrink-0">
             <div className="p-5 md:p-6 border-b border-border flex justify-between items-center bg-gray-50/50">
-              <h2 className="text-lg font-bold text-textPrimary">Membres ({members.length})</h2>
-              <span className="text-sm font-bold text-primary whitespace-nowrap ml-4">{members.filter(m => m.status === 'Payé').length} / {cercle.currentMembers} Payés</span>
+              <h2 className="text-lg font-bold text-textPrimary">Membres ({members.filter(m => !m.isPending).length})</h2>
+              <span className="text-sm font-bold text-primary whitespace-nowrap ml-4">{members.filter(m => m.status === 'Payé' && !m.isPending).length} / {cercle.currentMembers} Payés</span>
             </div>
             
             <div className="overflow-x-auto">
@@ -608,14 +664,14 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                 </thead>
                 <tbody className="divide-y divide-border">
                   {members.map((member) => (
-                    <tr key={member.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <tr key={member.id} className={`hover:bg-gray-50/50 transition-colors group ${member.isPending ? 'opacity-70 bg-gray-50/30' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm shrink-0 ${member.role === 'Organisateur' ? 'bg-primary text-white' : 'bg-gray-100 text-textPrimary'}`}>
                             {member.avatar}
                           </div>
                           <div>
-                            <p className="font-bold text-textPrimary text-sm">{member.name}</p>
+                            <p className="font-bold text-textPrimary text-sm">{member.name} {member.isPending && <span className="text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full ml-2">En attente d'approbation</span>}</p>
                             <p className="text-xs text-textSecondary flex items-center gap-1">
                               Score: <span className={`font-bold ${member.trustScore > 80 ? 'text-success' : member.trustScore > 50 ? 'text-warning' : 'text-danger'}`}>{member.trustScore}</span>
                             </p>
@@ -623,16 +679,22 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap
-                          ${member.status === 'Payé' ? 'bg-success/10 text-success border border-success/20' : 
-                            member.status === 'En attente' ? 'bg-warning/10 text-warning border border-warning/20' : 
-                            'bg-danger/10 text-danger border border-danger/20'}`}
-                        >
-                          {member.status === 'Payé' ? <CheckCircle2 size={14}/> : 
-                           member.status === 'En attente' ? <Clock size={14}/> : 
-                           <XCircle size={14}/>}
-                          {member.status}
-                        </div>
+                        {!member.isPending ? (
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap
+                            ${member.status === 'Payé' ? 'bg-success/10 text-success border border-success/20' : 
+                              member.status === 'En attente' ? 'bg-warning/10 text-warning border border-warning/20' : 
+                              'bg-danger/10 text-danger border border-danger/20'}`}
+                          >
+                            {member.status === 'Payé' ? <CheckCircle2 size={14}/> : 
+                             member.status === 'En attente' ? <Clock size={14}/> : 
+                             <XCircle size={14}/>}
+                            {member.status}
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-textSecondary border border-border">
+                            -
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-textSecondary font-medium whitespace-nowrap">
                         {member.date}
@@ -640,23 +702,44 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                       {cercle.isOrganizer && (
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
-                            {member.status !== 'Payé' && (
-                              <button 
-                                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ${member.name}, c'est le moment de payer ta cotisation de ${cercle.amount.toLocaleString('fr-FR')} FCFA pour la tontine "${cercle.name}" ! Connecte-toi sur Tontineo pour régler.`)}`, '_blank')}
-                                className="p-2 bg-surface border border-border rounded-lg shadow-sm text-textSecondary hover:text-primary hover:border-primary transition-all hover:-translate-y-0.5 group-hover:bg-primary/5" 
-                                title="Relancer sur WhatsApp"
-                              >
-                                <Smartphone size={16} />
-                              </button>
-                            )}
-                            {member.user_id !== user?.id && (
-                              <button 
-                                onClick={() => handleRemoveMember(member.user_id, member.name)}
-                                className="p-2 bg-surface border border-border rounded-lg shadow-sm text-textSecondary hover:text-danger hover:border-danger transition-all hover:-translate-y-0.5 group-hover:bg-danger/5" 
-                                title="Exclure ce membre"
-                              >
-                                <XCircle size={16} />
-                              </button>
+                            {member.isPending ? (
+                              <>
+                                <button 
+                                  onClick={() => handleApproveMember(member.user_id, member.name)}
+                                  className="p-2 bg-success/10 border border-success/20 rounded-lg shadow-sm text-success hover:bg-success/20 transition-all hover:-translate-y-0.5" 
+                                  title="Approuver"
+                                >
+                                  <CheckCircle2 size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => handleRemoveMember(member.user_id, member.name)}
+                                  className="p-2 bg-danger/10 border border-danger/20 rounded-lg shadow-sm text-danger hover:bg-danger/20 transition-all hover:-translate-y-0.5" 
+                                  title="Rejeter"
+                                >
+                                  <XCircle size={16} />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {member.status !== 'Payé' && (
+                                  <button 
+                                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ${member.name}, c'est le moment de payer ta cotisation de ${cercle.amount.toLocaleString('fr-FR')} FCFA pour la tontine "${cercle.name}" ! Connecte-toi sur Tontineo pour régler.`)}`, '_blank')}
+                                    className="p-2 bg-surface border border-border rounded-lg shadow-sm text-textSecondary hover:text-primary hover:border-primary transition-all hover:-translate-y-0.5 group-hover:bg-primary/5" 
+                                    title="Relancer sur WhatsApp"
+                                  >
+                                    <Smartphone size={16} />
+                                  </button>
+                                )}
+                                {member.user_id !== user?.id && (
+                                  <button 
+                                    onClick={() => handleRemoveMember(member.user_id, member.name)}
+                                    className="p-2 bg-surface border border-border rounded-lg shadow-sm text-textSecondary hover:text-danger hover:border-danger transition-all hover:-translate-y-0.5 group-hover:bg-danger/5" 
+                                    title="Exclure ce membre"
+                                  >
+                                    <XCircle size={16} />
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>
@@ -752,7 +835,29 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
           </div>
           
         </div>
+        )}
       </div>
+      
+      <DisputeModal 
+        isOpen={showDisputeModal} 
+        onClose={() => setShowDisputeModal(false)} 
+        circleId={cercle.id} 
+        circleName={cercle.name} 
+      />
+
+      <CharteModal 
+        isOpen={showCharte}
+        onClose={() => setShowCharte(false)}
+        circle={{
+          name: cercle.name,
+          amount: cercle.amount,
+          frequency: cercle.frequency,
+          penalty: cercle.penalty,
+          drawType: cercle.drawType,
+          maxMembers: cercle.maxMembers
+        }}
+        hasAccepted={true}
+      />
     </div>
   );
 }

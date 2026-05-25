@@ -100,9 +100,26 @@ export default function CerclesPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center text-textSecondary h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-          <p>Chargement de vos cercles...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-surface rounded-2xl border border-border p-5 md:p-6 shadow-sm flex flex-col h-[280px] animate-pulse">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gray-200 dark:bg-gray-700"></div>
+                  <div className="space-y-2">
+                    <div className="w-32 h-5 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+                    <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4 mb-6">
+                <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+                <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+                <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+              </div>
+              <div className="mt-auto w-full h-10 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+            </div>
+          ))}
         </div>
       ) : (
         <>

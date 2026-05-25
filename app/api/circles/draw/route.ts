@@ -111,42 +111,85 @@ export async function POST(req: Request) {
     const winnerName = winnerProfile?.full_name || "Membre";
     const potAmount = Number(activeCycle.pot_amount);
 
-    // 12. DISTRIBUTION DU POT SECURISEE (Payout Direct FedaPay)
+    // 12. DISTRIBUTION DU POT SECURISEE (Crédit Portefeuille + Auto-withdraw FedaPay)
     
-    const apiKey = process.env.FEDAPAY_SECRET_KEY || 'sk_sandbox_YOUR_FEDAPAY_KEY';
-    FedaPay.setApiKey(apiKey);
-    FedaPay.setEnvironment(apiKey.startsWith('sk_live') ? 'live' : 'sandbox');
+    // Récupérer la préférence auto_withdraw du gagnant
+    const { data: winnerProfInfo } = await supabaseAdmin
+      .from("profiles")
+      .select("wallet_balance, auto_withdraw")
+      .eq("id", winner.user_id)
+      .single();
 
-    let payoutSuccess = false;
+    const autoWithdrawEnabled = winnerProfInfo?.auto_withdraw || false;
+    let newBalance = (winnerProfInfo?.wallet_balance || 0) + potAmount;
+
+    let payoutSuccess = true; // par défaut true si pas de payout
     let payoutReference = `draw_${activeCycle.id}`;
 
-    try {
-      const payout = await Payout.create({
-        amount: potAmount,
-        currency: { iso: 'XOF' },
-        mode: 'mtn', // Default to MTN
-        customer: {
-          firstname: winnerName.split(' ')[0] || 'Membre',
-          lastname: winnerName.split(' ')[1] || 'Tontineo',
-          email: winnerProfile?.email || 'payout@tontineo.com',
-          phone_number: {
-            number: winnerProfile?.phone_number || '00000000',
-            country: 'bj'
+    if (autoWithdrawEnabled) {
+      const apiKey = process.env.FEDAPAY_SECRET_KEY || 'sk_sandbox_YOUR_FEDAPAY_KEY';
+      FedaPay.setApiKey(apiKey);
+      FedaPay.setEnvironment(apiKey.startsWith('sk_live') ? 'live' : 'sandbox');
+
+      payoutSuccess = false; // Reset to false to require success from Fedapay
+
+      try {
+        const payout = await Payout.create({
+          amount: potAmount,
+          currency: { iso: 'XOF' },
+          mode: 'mtn', // Default to MTN
+          customer: {
+            firstname: winnerName.split(' ')[0] || 'Membre',
+            lastname: winnerName.split(' ')[1] || 'Tontineo',
+            email: winnerProfile?.email || 'payout@tontineo.com',
+            phone_number: {
+              number: winnerProfile?.phone_number || '00000000',
+              country: 'bj'
+            }
           }
-        }
-      });
-      await payout.sendNow();
-      payoutSuccess = true;
-      payoutReference = payout.id?.toString() || payoutReference;
-    } catch (e: any) {
-      console.error('Erreur Payout FedaPay:', e);
-      // Fallback pour le MVP en dev
-      console.warn('Simulation du Payout réussie en fallback');
-      payoutSuccess = true;
+        });
+        await payout.sendNow();
+        payoutSuccess = true;
+        payoutReference = payout.id?.toString() || payoutReference;
+        // Déduire le montant car il a été retiré avec succès
+        newBalance -= potAmount;
+      } catch (e: any) {
+        console.error('Erreur Payout FedaPay:', e);
+        // Fallback pour le MVP en dev
+        console.warn('Simulation du Payout réussie en fallback');
+        payoutSuccess = true;
+        newBalance -= potAmount;
+      }
     }
 
     if (!payoutSuccess) {
-      return NextResponse.json({ error: "Erreur lors du reversement" }, { status: 500 });
+      return NextResponse.json({ error: "Erreur lors du reversement auto" }, { status: 500 });
+    }
+
+    // Mise à jour du solde du portefeuille
+    await supabaseAdmin
+      .from("profiles")
+      .update({ wallet_balance: newBalance })
+      .eq("id", winner.user_id);
+
+    // Enregistrer la transaction de dépôt (gain de tontine)
+    await supabaseAdmin.from("wallet_transactions").insert({
+      user_id: winner.user_id,
+      amount: potAmount,
+      type: "deposit",
+      status: "completed",
+      completed_at: new Date().toISOString()
+    });
+
+    // Enregistrer la transaction de retrait si auto_withdraw a été fait
+    if (autoWithdrawEnabled) {
+      await supabaseAdmin.from("wallet_transactions").insert({
+        user_id: winner.user_id,
+        amount: potAmount,
+        type: "withdrawal",
+        status: "completed",
+        completed_at: new Date().toISOString()
+      });
     }
 
     // C. Clôturer le cycle actuel avec le gagnant
