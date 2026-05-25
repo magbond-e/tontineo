@@ -7,7 +7,7 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 
 export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const { user, userProfile, isLoading } = useAuth();
-  
+
   const [city, setCity] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [momo, setMomo] = useState("");
@@ -24,7 +24,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
 
   // Si on a un utilisateur et qu'il manque des informations essentielles
   if (user && userProfile && (!userProfile.city || !userProfile.whatsapp || !userProfile.phone)) {
-    
+
     const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!city || !whatsapp || !momo) {
@@ -68,26 +68,26 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
                 {error}
               </div>
             )}
-            
+
             <div>
               <label className="block text-sm font-bold text-textPrimary mb-1.5">Ville de résidence</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Ex: Cotonou" 
+                placeholder="Ex: Cotonou"
                 className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-textPrimary"
                 required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-bold text-textPrimary mb-1.5">Numéro WhatsApp</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
-                placeholder="+229 00 00 00 00" 
+                placeholder="+229 00 00 00 00"
                 className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-textPrimary"
                 required
               />
@@ -96,19 +96,19 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
 
             <div>
               <label className="block text-sm font-bold text-textPrimary mb-1.5">Numéro Mobile Money (Réception)</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={momo}
                 onChange={(e) => setMomo(e.target.value)}
-                placeholder="Ex: 97 00 00 00" 
+                placeholder="Ex: 97 00 00 00"
                 className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-textPrimary"
                 required
               />
               <p className="text-xs text-textSecondary mt-1">Ce numéro sera utilisé pour recevoir vos gains.</p>
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isSaving}
               className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 mt-6 disabled:opacity-50"
             >
