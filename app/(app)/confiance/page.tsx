@@ -14,6 +14,7 @@ export default function ConfiancePage() {
   const [history, setHistory] = useState<any[]>([]);
   const [showBadgesModal, setShowBadgesModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [stats, setStats] = useState({ cyclesParticipated: 0, circlesOrganized: 0 });
 
   useEffect(() => {
     const fetchTrustData = async () => {
@@ -41,6 +42,15 @@ export default function ConfiancePage() {
       } else if (profile) {
         setTargetScore(Math.min(100, profile.trust_score || 50));
       }
+
+      // Fetch Stats for badges
+      const { count: cyclesCount } = await supabase.from('payments').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'completed');
+      const { count: circlesCount } = await supabase.from('circles').select('*', { count: 'exact', head: true }).eq('organizer_id', user.id);
+      
+      setStats({
+        cyclesParticipated: cyclesCount || 0,
+        circlesOrganized: circlesCount || 0
+      });
 
       let mappedHistory: any[] = [];
       if (hasEvents) {
@@ -289,42 +299,46 @@ export default function ConfiancePage() {
               </button>
             </div>
             
-            <div className="space-y-4">
-              <div className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${score >= 70 ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">
-                  ⚡
-                </div>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              <div className={`flex items-center gap-4 p-3 rounded-2xl border border-border bg-primaryLight/20 border-primary/20`}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">🌱</div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
-                    Payeur Ponctuel {score >= 70 && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
-                  </h4>
-                  <p className="text-xs text-textSecondary">Obtenu en payant vos cotisations d'affilée sans aucun retard.</p>
+                  <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">Inscrit <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span></h4>
+                  <p className="text-xs text-textSecondary">Obtenu dès la création de votre compte Tontineo.</p>
                 </div>
               </div>
 
-              <div className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${score >= 80 ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">
-                  👑
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
-                    Organisateur Pro {score >= 80 && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
-                  </h4>
-                  <p className="text-xs text-textSecondary">Obtenu en créant une tontine active et en gérant ses cycles sans encombre.</p>
-                </div>
-              </div>
+              {[1, 10, 50, 100].map(target => {
+                const isUnlocked = stats.cyclesParticipated >= target;
+                return (
+                  <div key={`cycle-${target}`} className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${isUnlocked ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">{target >= 100 ? '💎' : target >= 50 ? '🌟' : target >= 10 ? '🔥' : '❤️'}</div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
+                        {target === 1 ? 'Participant Actif' : target === 10 ? 'Membre Vétéran' : target === 50 ? 'Participant d\'Élite' : 'Légende de la Tontine'}
+                        {isUnlocked && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
+                      </h4>
+                      <p className="text-xs text-textSecondary">Participer à {target} cycle{target > 1 ? 's' : ''} de tontine. ({stats.cyclesParticipated}/{target})</p>
+                    </div>
+                  </div>
+                );
+              })}
 
-              <div className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${score >= 50 ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">
-                  ❤️
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
-                    Membre Fidèle {score >= 50 && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
-                  </h4>
-                  <p className="text-xs text-textSecondary">Obtenu dès l'inscription et la participation au premier cycle de tontine.</p>
-                </div>
-              </div>
+              {[1, 10, 50, 100].map(target => {
+                const isUnlocked = stats.circlesOrganized >= target;
+                return (
+                  <div key={`org-${target}`} className={`flex items-center gap-4 p-3 rounded-2xl border border-border ${isUnlocked ? 'bg-primaryLight/20 border-primary/20' : 'opacity-40 grayscale bg-gray-50'}`}>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-white border border-border shrink-0 shadow-sm">{target >= 100 ? '🏛️' : target >= 50 ? '🎖️' : target >= 10 ? '👑' : '🛡️'}</div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-sm text-textPrimary flex items-center gap-1.5">
+                        {target === 1 ? 'Créateur de Tontine' : target === 10 ? 'Leader Communautaire' : target === 50 ? 'Maître Organisateur' : 'Empereur Tontineo'}
+                        {isUnlocked && <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full font-bold">Débloqué</span>}
+                      </h4>
+                      <p className="text-xs text-textSecondary">Organiser {target} cercle{target > 1 ? 's' : ''} de tontine. ({stats.circlesOrganized}/{target})</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             
             <button 

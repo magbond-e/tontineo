@@ -60,6 +60,7 @@ export default function CreateCerclePage() {
         name: formData.name,
         description: formData.description,
         icon_emoji: formData.coverEmoji || "💰",
+        invite_token: crypto.randomUUID(),
         frequency: formData.frequency,
         amount: parseInt(formData.amount || "0"),
         max_members: parseInt(formData.maxMembers || "0"),

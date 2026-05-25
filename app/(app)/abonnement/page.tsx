@@ -9,6 +9,7 @@ export default function SubscriptionPage() {
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'premium' | 'pro'>('premium');
+  const [showSkeleton, setShowSkeleton] = useState(false);
   
   const supabase = createClient();
   const [currentPlan, setCurrentPlan] = useState<'free' | 'premium' | 'pro'>('free');
@@ -26,21 +27,38 @@ export default function SubscriptionPage() {
       setIsFetching(false);
     };
     fetchPlan();
+
+    // Check for simulated payment return
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success' && urlParams.get('plan')) {
+        const planToUpgrade = urlParams.get('plan') as 'premium' | 'pro';
+        setShowSkeleton(true);
+        
+        // Simulate webhook processing time
+        setTimeout(async () => {
+          if (user) {
+            await supabase.from('profiles').update({ current_plan: planToUpgrade }).eq('id', user.id);
+            setCurrentPlan(planToUpgrade);
+            setSelectedPlan(planToUpgrade);
+          }
+          setShowSkeleton(false);
+          // Remove query params
+          window.history.replaceState(null, '', window.location.pathname);
+        }, 3000);
+      }
+    }
   }, [user, supabase]);
 
   const handleUpgrade = async () => {
     if (selectedPlan === currentPlan) return;
     
     setIsProcessing(true);
-    // Simulate FedaPay payment initialization
-    setTimeout(async () => {
-      alert("Paiement FedaPay simulé avec succès pour l'abonnement " + selectedPlan.toUpperCase());
-      if (user) {
-        await supabase.from('profiles').update({ current_plan: selectedPlan }).eq('id', user.id);
-        setCurrentPlan(selectedPlan);
-      }
-      setIsProcessing(false);
-    }, 1500);
+    // Real flow would call FedaPay API here. We simulate redirect to FedaPay checkout:
+    setTimeout(() => {
+      // Fake FedaPay URL redirect that instantly redirects back
+      window.location.href = window.location.pathname + `?payment=success&plan=${selectedPlan}`;
+    }, 500);
   };
 
   const handleCancel = async () => {
@@ -59,6 +77,24 @@ export default function SubscriptionPage() {
 
   if (isFetching) {
     return <div className="flex justify-center items-center min-h-[50vh]"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
+
+  if (showSkeleton) {
+    return (
+      <div className="max-w-5xl mx-auto space-y-8 min-h-[80vh] flex flex-col items-center justify-center animate-pulse">
+        <div className="w-20 h-20 bg-primary/20 rounded-full mb-6 flex items-center justify-center">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        </div>
+        <h2 className="text-2xl font-bold text-textPrimary mb-2">Validation du paiement en cours...</h2>
+        <p className="text-textSecondary mb-8 text-center max-w-md">Veuillez patienter pendant que nous confirmons votre transaction auprès de notre partenaire de paiement.</p>
+        
+        <div className="w-full max-w-2xl bg-surface border border-border rounded-3xl p-8 space-y-4">
+          <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded-md w-1/3"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-md w-1/2"></div>
+          <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded-md w-full mt-6"></div>
+        </div>
+      </div>
+    );
   }
 
   return (

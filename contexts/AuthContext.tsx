@@ -12,6 +12,8 @@ interface AuthContextType {
     email: string;
     avatarUrl: string;
     whatsapp: string;
+    city: string;
+    phone: string;
   } | null;
 }
 
@@ -29,6 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string;
     avatarUrl: string;
     whatsapp: string;
+    city: string;
+    phone: string;
   } | null>(null);
   const supabase = createClient();
 
@@ -67,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchProfile = async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, avatar_url, whatsapp")
+        .select("full_name, avatar_url, whatsapp, city, phone")
         .eq("id", user.id)
         .single();
       
@@ -77,6 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: user.email || "",
           avatarUrl: data.avatar_url || user.user_metadata?.avatar_url || "",
           whatsapp: data.whatsapp || user.user_metadata?.whatsapp || "",
+          city: data.city || "",
+          phone: data.phone || "",
         });
       } else if (error && error.code === 'PGRST116') {
         // No row found, try creating one
@@ -95,6 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: user.email || "",
           avatarUrl: fallbackAvatar,
           whatsapp: fallbackWhatsapp,
+          city: "",
+          phone: "",
         });
       } else {
         setProfileData({
@@ -102,6 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: user.email || "",
           avatarUrl: user.user_metadata?.avatar_url || "",
           whatsapp: user.user_metadata?.whatsapp || "",
+          city: "",
+          phone: "",
         });
       }
     };
@@ -121,6 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: user.email || "",
             avatarUrl: updated.avatar_url || user.user_metadata?.avatar_url || "",
             whatsapp: updated.whatsapp || user.user_metadata?.whatsapp || "",
+            city: updated.city || "",
+            phone: updated.phone || "",
           });
         }
       )
@@ -136,6 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: user.email || "",
     avatarUrl: user.user_metadata?.avatar_url || "",
     whatsapp: user.user_metadata?.whatsapp || "",
+    city: "",
+    phone: "",
   } : null);
 
   return (
