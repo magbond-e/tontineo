@@ -45,9 +45,9 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
         setError("Erreur lors de la sauvegarde : " + updateError.message);
         setIsSaving(false);
       } else {
-        // La mise à jour via supabase déclenchera le real-time sur AuthContext
-        // Ce qui mettra à jour userProfile et fera disparaître ce composant automatiquement.
-        setIsSaving(false);
+        // Recharger la page pour forcer la mise à jour du contexte AuthContext 
+        // au cas où les webhooks Realtime ne sont pas activés
+        window.location.reload();
       }
     };
 
