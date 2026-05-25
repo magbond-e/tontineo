@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const jakarta = Plus_Jakarta_Sans({ 
   subsets: ["latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({
             </ThemeProvider>
           </LanguageProvider>
         </AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
