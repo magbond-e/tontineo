@@ -321,6 +321,25 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         image: circleData.icon_emoji || "💰"
       });
 
+      // Fetch payments for active cycle to calculate pot and check member status
+      let cyclePayments: any[] = [];
+      let calculatedPot = circleData.pot_collected || 0;
+      
+      if (cycleData) {
+        const { data: paymentsData } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('circle_id', params.id)
+          .eq('cycle_id', cycleData.id)
+          .eq('status', 'completed');
+          
+        if (paymentsData) {
+          cyclePayments = paymentsData;
+          // We can recalculate pot based on payments or stick to the stored one
+          // calculatedPot = paymentsData.reduce((sum, p) => sum + (p.amount || 0), 0);
+        }
+      }
+
       // Fetch members with profile data
       const { data: membershipsData } = await supabase
         .from('memberships')
@@ -328,6 +347,9 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         .eq('circle_id', params.id);
         
       if (membershipsData) {
+        const userMembership = membershipsData.find(m => m.user_id === user.id);
+        const isUserMember = !!userMembership && userMembership.status !== 'rejected';
+
         setCercle((prev: any) => ({
           ...prev,
           isMember: isUserMember,
