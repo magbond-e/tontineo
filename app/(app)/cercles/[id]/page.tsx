@@ -99,6 +99,18 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
       });
 
     if (!cycleError) {
+      // Notify all active members
+      const { data: activeMembers } = await supabase.from('memberships').select('user_id').eq('circle_id', cercle.id).eq('status', 'active');
+      if (activeMembers && activeMembers.length > 0) {
+        const notifications = activeMembers.map(m => ({
+          user_id: m.user_id,
+          title: 'Cercle démarré',
+          description: `Le cercle "${cercle.name}" a démarré son premier cycle ! Préparez-vous pour vos cotisations.`,
+          unread: true
+        }));
+        await supabase.from('notifications').insert(notifications);
+      }
+
       setCercle({ ...cercle, status: 'En cours' });
       window.location.reload();
     }

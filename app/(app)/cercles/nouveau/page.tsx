@@ -94,6 +94,14 @@ export default function CreateCerclePage() {
       }
     }
 
+    // Ajouter la notification de création
+    await supabase.from('notifications').insert({
+      user_id: user.id,
+      title: 'Cercle créé',
+      description: `Votre cercle "${circleData.name}" a été créé avec succès.`,
+      unread: true
+    });
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "https://tontineo.app");
     setInviteLink(`${appUrl}/join/${circleData.invite_token}`);
     setIsCreated(true);

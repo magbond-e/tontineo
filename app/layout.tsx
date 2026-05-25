@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className="font-sans antialiased min-h-screen" suppressHydrationWarning>
         <AuthProvider>
           <LanguageProvider>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light">
               {children}
             </ThemeProvider>
           </LanguageProvider>

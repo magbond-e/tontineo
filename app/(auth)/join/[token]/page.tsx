@@ -81,8 +81,14 @@ export default function JoinPage({ params }: { params: { token: string } }) {
       setError("Une erreur est survenue lors de la demande d'adhésion.");
       setIsJoining(false);
     } else {
-      // Instead of immediate redirect, we could show an alert or redirect to circle page
-      // where the 'pending' state will be handled.
+      // Add notification for the organizer
+      await supabase.from('notifications').insert({
+        user_id: inviteData.organizer_id,
+        title: 'Nouvelle demande d\'adhésion',
+        description: `Un nouvel utilisateur souhaite rejoindre votre cercle "${inviteData.name}".`,
+        unread: true
+      });
+      
       router.push(`/cercles/${inviteData.id}?joined=pending`);
     }
   };

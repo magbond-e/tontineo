@@ -32,7 +32,7 @@ export default function RegisterPage() {
           full_name: name,
           whatsapp: whatsapp,
         },
-        emailRedirectTo: `${location.origin}/auth/callback`,
+        emailRedirectTo: `${location.origin}/auth/callback${new URLSearchParams(window.location.search).get('redirect') ? `?next=${new URLSearchParams(window.location.search).get('redirect')}` : ''}`,
       },
     });
 
@@ -50,10 +50,11 @@ export default function RegisterPage() {
   };
 
   const handleGoogleLogin = async () => {
+    const redirectParam = new URLSearchParams(window.location.search).get('redirect');
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        redirectTo: `${location.origin}/auth/callback${redirectParam ? `?next=${redirectParam}` : ''}`,
       },
     });
   };

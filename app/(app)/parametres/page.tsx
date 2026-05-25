@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTheme } from "next-themes";
-import { User, ShieldCheck, Bell, Crown, Settings, UploadCloud, CheckCircle2, AlertCircle, Camera, FileText, Check, Smartphone, Mail, MessageSquare, Moon, Sun, Globe, Loader2, Save, Lock } from "lucide-react";
+import { User, ShieldCheck, Bell, Crown, Settings, UploadCloud, CheckCircle2, AlertCircle, Camera, FileText, Check, Smartphone, Mail, MessageSquare, Globe, Loader2, Save, Lock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/utils/supabase/client";
 
 export default function ParametresPage() {
-  const { theme, setTheme } = useTheme();
   const { lang, setLang, t } = useLanguage();
   const { user, userProfile } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -306,8 +304,7 @@ export default function ParametresPage() {
     { id: "securite", label: t("tab_security"), icon: Lock },
     { id: "kyc", label: t("tab_kyc"), icon: ShieldCheck },
     { id: "notifications", label: t("tab_notif"), icon: Bell },
-    { id: "abonnement", label: t("tab_plan"), icon: Crown },
-    { id: "preferences", label: t("tab_pref"), icon: Settings },
+    { id: "abonnement", label: t("tab_plan"), icon: Crown }
   ];
 
   return (
@@ -806,64 +803,6 @@ export default function ParametresPage() {
                 </button>
               </div>
             )}
-          </div>
-        )}
-
-        {/* --- ONGLET PRÉFÉRENCES --- */}
-        {activeTab === "preferences" && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
-            <h2 className="text-xl font-bold text-textPrimary mb-6">{t("pref_title")}</h2>
-            
-            <div className="space-y-6">
-              {/* Thème */}
-              <div className="border border-border rounded-2xl p-5 shadow-sm bg-surface">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-gray-100 dark:bg-gray-800 text-textSecondary rounded-xl">
-                      {theme === 'dark' ? <Moon size={24} /> : <Sun size={24} />}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-textPrimary">{t("theme_title")}</h3>
-                      <p className="text-xs text-textSecondary">{t("theme_desc")}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex bg-gray-50/50 dark:bg-slate-800/30 p-2 rounded-xl border border-border gap-2">
-                  <button 
-                    onClick={() => setTheme('light')}
-                    className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-surface shadow-sm text-textPrimary border border-border' : 'text-textSecondary hover:bg-gray-100 dark:hover:bg-slate-800'}`}
-                  >
-                    <Sun size={16} /> {t("light")}
-                  </button>
-                  <button 
-                    onClick={() => setTheme('dark')}
-                    className={`flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${theme === 'dark' ? 'bg-[#1E293B] shadow-sm text-[#F8FAFC] border border-[#334155]' : 'text-textSecondary hover:bg-gray-100 dark:hover:bg-slate-800'}`}
-                  >
-                    <Moon size={16} /> {t("dark")}
-                  </button>
-                </div>
-              </div>
-
-              {/* Langue */}
-              <div className="border border-border rounded-2xl p-5 shadow-sm bg-surface">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-gray-100 dark:bg-gray-800 text-textSecondary rounded-xl">
-                      <Globe size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-textPrimary">{t("lang_title")}</h3>
-                      <p className="text-xs text-textSecondary">{t("lang_desc")}</p>
-                    </div>
-                  </div>
-                </div>
-                <select value={lang} onChange={changeLanguage} className="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm font-bold text-textPrimary cursor-pointer appearance-none">
-                  <option value="fr">🇫🇷 Français</option>
-                  <option value="en">🇬🇧 English</option>
-                </select>
-              </div>
-
-            </div>
           </div>
         )}
 

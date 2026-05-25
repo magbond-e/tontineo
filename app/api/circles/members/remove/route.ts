@@ -59,6 +59,39 @@ export async function POST(req: Request) {
         .eq('id', circle_id);
     }
 
+    // Ajouter une notification pour le membre exclu
+    const circleName = currentCircle ? 'le cercle' : 'le cercle'; // Cannot fetch name, wait, currentCircle only selected current_members.
+    // Let's fetch circle name
+    const { data: circleData } = await supabaseAdmin.from('circles').select('name').eq('id', circle_id).single();
+    
+    if (user.id !== user_id_to_remove) {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: user_id_to_remove,
+        title: 'Adhésion refusée ou exclue',
+        description: `Vous avez été retiré ou refusé du cercle "${circleData?.name || 'Cercle'}".`,
+        unread: true
+      });
+
+      // Score de confiance: Retirer -2 points pour exclusion
+      const { data: profile } = await supabaseAdmin.from('profiles').select('trust_score').eq('id', user_id_to_remove).single();
+      if (profile) {
+        const scoreBefore = profile.trust_score || 50;
+        const scoreAfter = Math.max(0, scoreBefore - 2);
+        
+        await supabaseAdmin.from('trust_events').insert({
+          user_id: user_id_to_remove,
+          circle_id: circle_id,
+          event_type: 'circle_removed',
+          points: -2,
+          score_before: scoreBefore,
+          score_after: scoreAfter,
+          description: 'Exclusion ou refus d\'un cercle'
+        });
+        
+        await supabaseAdmin.from('profiles').update({ trust_score: scoreAfter }).eq('id', user_id_to_remove);
+      }
+    }
+
     return NextResponse.json({ success: true, message: 'Membre retiré avec succès' });
 
   } catch (error: any) {

@@ -43,6 +43,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Erreur lors de l\'approbation' }, { status: 500 });
     }
 
+    // Ajouter une notification pour le membre
+    const { data: circleData } = await supabaseAdmin.from('circles').select('name').eq('id', circle_id).single();
+    await supabaseAdmin.from('notifications').insert({
+      user_id: user_id_to_approve,
+      title: 'Adhésion approuvée',
+      description: `Votre demande d'adhésion au cercle "${circleData?.name || 'Cercle'}" a été approuvée.`,
+      unread: true
+    });
+
+    // Score de confiance: Ajouter +2 points pour avoir été accepté dans un cercle
+    const { data: profile } = await supabaseAdmin.from('profiles').select('trust_score').eq('id', user_id_to_approve).single();
+    if (profile) {
+      const scoreBefore = profile.trust_score || 50;
+      const scoreAfter = Math.min(100, scoreBefore + 2);
+      
+      await supabaseAdmin.from('trust_events').insert({
+        user_id: user_id_to_approve,
+        circle_id: circle_id,
+        event_type: 'circle_joined',
+        points: 2,
+        score_before: scoreBefore,
+        score_after: scoreAfter,
+        description: 'Acceptation dans un nouveau cercle'
+      });
+      
+      await supabaseAdmin.from('profiles').update({ trust_score: scoreAfter }).eq('id', user_id_to_approve);
+    }
+
     return NextResponse.json({ success: true, message: 'Membre approuvé avec succès' });
 
   } catch (error: any) {
