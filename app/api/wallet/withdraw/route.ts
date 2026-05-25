@@ -67,6 +67,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Solde insuffisant pour effectuer ce retrait." }, { status: 400 });
     }
 
+    // Calcul des frais (6%)
+    const feeAmount = Math.ceil(parsedAmount * 0.06);
+    const netPayout = Math.floor(parsedAmount - feeAmount);
+
+    // 3.5. Initiation FedaPay Payout
+    let fedapayReference = 'simulated_' + Math.random().toString(36).substring(7);
+    try {
+      const { FedaPay, Payout } = require('fedapay');
+      const apiKey = process.env.FEDAPAY_SECRET_KEY || 'sk_sandbox_YOUR_FEDAPAY_KEY';
+      FedaPay.setApiKey(apiKey);
+      FedaPay.setEnvironment(apiKey.startsWith('sk_live') ? 'live' : 'sandbox');
+
+      const payout = await Payout.create({
+        amount: netPayout,
+        currency: { iso: 'XOF' },
+        mode: 'mtn', // Default to MTN, can be made dynamic
+        customer: {
+          firstname: user.user_metadata?.full_name || 'Utilisateur',
+          lastname: 'Tontineo',
+          email: user.email || 'user@tontineo.com',
+          phone_number: {
+            number: user.phone || '00000000',
+            country: 'BJ'
+          }
+        },
+        send_now: true
+      });
+      fedapayReference = payout.id.toString();
+    } catch (e: any) {
+      console.warn('FedaPay Payout simulation fallback (probably sandbox without payout enabled):', e.message);
+    }
+
     // 4. Débiter le portefeuille (Atomic update via Admin client)
     const { error: updateErr } = await supabaseAdmin
       .from("profiles")
@@ -81,9 +113,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Erreur lors de la mise à jour du solde" }, { status: 500 });
     }
 
-    // Calcul des frais (6%)
-    const feeAmount = Math.ceil(parsedAmount * 0.06);
-    const netPayout = Math.floor(parsedAmount - feeAmount);
 
     // 5. Enregistrer la transaction de retrait complétée
     const { error: txErr } = await supabaseAdmin

@@ -15,7 +15,7 @@ export default function CreateCerclePage() {
     amount: "10000",
     frequency: "Mensuel",
     maxMembers: "10",
-    drawType: "Aléatoire IA",
+    drawType: "Liste Fixe",
     penalty: "1000",
     coverEmoji: "💰",
     joinAsMember: true

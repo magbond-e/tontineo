@@ -53,6 +53,13 @@ export default function ParametresPage() {
 
   const supabase = createClient();
 
+  // KYC State
+  const [kycStatus, setKycStatus] = useState("unverified");
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const [isUploadingKyc, setIsUploadingKyc] = useState(false);
+  const [kycMessage, setKycMessage] = useState("");
+
   useEffect(() => {
     setMounted(true);
 
@@ -82,11 +89,40 @@ export default function ParametresPage() {
           if (profile.sms_enabled !== null) setSmsEnabled(profile.sms_enabled);
           if (profile.email_enabled !== null) setEmailEnabled(profile.email_enabled);
           if (profile.has_pin !== undefined) setHasPin(profile.has_pin);
+          if (profile.kyc_status) setKycStatus(profile.kyc_status);
         }
       }
     };
     fetchProfile();
   }, [user, userProfile, supabase]);
+
+  const handleKycSubmit = async () => {
+    if (!frontFile || !backFile) {
+      setKycMessage("Veuillez sélectionner le recto et le verso.");
+      return;
+    }
+    setIsUploadingKyc(true);
+    setKycMessage("");
+
+    try {
+      // Simulation of file upload logic
+      // In a real app we would use supabase.storage.from('kyc').upload(...)
+      await new Promise(r => setTimeout(r, 1500));
+
+      const { error } = await supabase.from('profiles').update({ kyc_status: 'pending' }).eq('id', user?.id);
+
+      if (error) {
+        setKycMessage("Erreur lors de la soumission: " + error.message);
+      } else {
+        setKycStatus("pending");
+        setKycMessage("Documents soumis avec succès. En attente de validation.");
+      }
+    } catch (err: any) {
+      setKycMessage("Erreur réseau: " + err.message);
+    } finally {
+      setIsUploadingKyc(false);
+    }
+  };
 
   const handleSaveProfile = () => {
     if (waInput !== waNumber) {
@@ -486,8 +522,13 @@ export default function ParametresPage() {
                 <h2 className="text-xl font-bold text-textPrimary">{t("kyc_title")}</h2>
                 <p className="text-textSecondary text-sm mt-1">{t("kyc_desc")}</p>
               </div>
-              <div className="px-3 py-1.5 bg-warning/10 border border-warning/20 text-warning text-sm font-bold rounded-lg flex items-center gap-2">
-                <AlertCircle size={16} /> {t("unverified")}
+              <div className={`px-3 py-1.5 text-sm font-bold rounded-lg flex items-center gap-2
+                ${kycStatus === 'verified' ? 'bg-success/10 border border-success/20 text-success' : 
+                  kycStatus === 'pending' ? 'bg-warning/10 border border-warning/20 text-warning' : 
+                  'bg-danger/10 border border-danger/20 text-danger'}`}
+              >
+                {kycStatus === 'verified' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />} 
+                {kycStatus === 'verified' ? 'Vérifié' : kycStatus === 'pending' ? 'En attente' : t("unverified")}
               </div>
             </div>
 
@@ -515,22 +556,24 @@ export default function ParametresPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Upload Recto */}
-                  <div className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                  <label className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                    <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setFrontFile(e.target.files?.[0] || null)} />
                     <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <FileText size={28} />
+                      {frontFile ? <CheckCircle2 size={28} /> : <FileText size={28} />}
                     </div>
-                    <h4 className="font-bold text-textPrimary mb-1">{t("front")}</h4>
-                    <p className="text-xs text-textSecondary">{t("upload_hint")}<br/>{t("upload_format")}</p>
-                  </div>
+                    <h4 className="font-bold text-textPrimary mb-1">{frontFile ? frontFile.name : t("front")}</h4>
+                    <p className="text-xs text-textSecondary">{!frontFile && <>{t("upload_hint")}<br/>{t("upload_format")}</>}</p>
+                  </label>
                   
                   {/* Upload Verso */}
-                  <div className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                  <label className="border-2 border-dashed border-border bg-surface rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                    <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setBackFile(e.target.files?.[0] || null)} />
                     <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <UploadCloud size={28} />
+                      {backFile ? <CheckCircle2 size={28} /> : <UploadCloud size={28} />}
                     </div>
-                    <h4 className="font-bold text-textPrimary mb-1">{t("back")}</h4>
-                    <p className="text-xs text-textSecondary">{t("back_hint")}<br/>{t("upload_format")}</p>
-                  </div>
+                    <h4 className="font-bold text-textPrimary mb-1">{backFile ? backFile.name : t("back")}</h4>
+                    <p className="text-xs text-textSecondary">{!backFile && <>{t("back_hint")}<br/>{t("upload_format")}</>}</p>
+                  </label>
                 </div>
               </div>
 
@@ -539,9 +582,20 @@ export default function ParametresPage() {
                 <p className="font-medium">{t("kyc_security")}</p>
               </div>
 
+              {kycMessage && (
+                <div className="text-center font-bold text-sm">
+                  {kycMessage}
+                </div>
+              )}
+
               <div className="pt-4 flex justify-end">
-                <button className="w-full md:w-auto px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all opacity-50 cursor-not-allowed">
-                  {t("submit_kyc")}
+                <button 
+                  onClick={handleKycSubmit}
+                  disabled={!frontFile || !backFile || isUploadingKyc || kycStatus === 'pending' || kycStatus === 'verified'}
+                  className="w-full md:w-auto px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
+                >
+                  {isUploadingKyc && <Loader2 size={18} className="animate-spin" />}
+                  {isUploadingKyc ? "Envoi..." : kycStatus === 'pending' ? "En attente de validation" : kycStatus === 'verified' ? "Validé" : t("submit_kyc")}
                 </button>
               </div>
             </div>

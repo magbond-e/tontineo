@@ -98,9 +98,14 @@ export default function PortefeuillePage() {
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-2xl font-extrabold text-textPrimary tracking-tight">Mon Portefeuille</h1>
-          <p className="text-sm text-textSecondary">Gérez vos fonds disponibles</p>
+          <h1 className="text-2xl font-extrabold text-textPrimary tracking-tight">Mon Épargne</h1>
+          <p className="text-sm text-textSecondary">Votre cagnotte personnelle, sans groupe.</p>
         </div>
+      </div>
+
+      <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl flex items-start gap-3 text-primary text-sm mb-6">
+        <Wallet size={20} className="flex-shrink-0 mt-0.5" />
+        <p><strong>Bientôt disponible :</strong> Cet espace est votre épargne personnelle. Vous pourrez très prochainement bloquer vos fonds sur une période donnée pour atteindre vos objectifs financiers en toute sécurité.</p>
       </div>
 
       <div className="bg-surface rounded-3xl border border-border p-8 shadow-sm text-center relative overflow-hidden">

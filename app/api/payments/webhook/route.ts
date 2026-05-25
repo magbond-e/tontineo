@@ -110,15 +110,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: paymentError.message }, { status: 500 });
     }
 
-    // 2. Incrémenter le pot du cycle via notre fonction sécurisée RPC (qui est maintenant réservée à service_role)
-    const { error: cycleError } = await supabaseAdmin
-      .rpc('increment_cycle_pot', { 
-        p_cycle_id: cycle_id, 
-        p_amount: amount 
-      });
+    // 2. Incrémenter le pot du cercle directement
+    const { data: currentCircle } = await supabaseAdmin
+      .from('circles')
+      .select('pot_collected')
+      .eq('id', circle_id)
+      .single();
 
-    if (cycleError) {
-      console.error('Erreur incrémentation pot:', cycleError);
+    if (currentCircle) {
+      const { error: cycleError } = await supabaseAdmin
+        .from('circles')
+        .update({ pot_collected: Number(currentCircle.pot_collected || 0) + Number(amount) })
+        .eq('id', circle_id);
+
+      if (cycleError) {
+        console.error('Erreur incrémentation pot:', cycleError);
+      }
     }
 
     // 3. Score de confiance: Ajouter +5 points pour paiement réussi

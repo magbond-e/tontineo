@@ -18,19 +18,24 @@ export default function JoinPage({ params }: { params: { token: string } }) {
   const [isJoining, setIsJoining] = useState(false);
   const [inviteData, setInviteData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
 
   useEffect(() => {
     const fetchCircleInfo = async () => {
       const { data, error } = await supabase
-        .rpc('get_circle_info_by_token', { p_token: params.token });
+        .from('circles')
+        .select('*, profiles:organizer_id(full_name)')
+        .eq('invite_token', params.token)
+        .single();
 
-      if (error) {
+      if (error || !data) {
         console.error("Error fetching circle info:", error);
-        setError("Impossible de charger les informations de l'invitation.");
-      } else if (!data || data.length === 0) {
         setError("Ce lien d'invitation est invalide, expiré, ou le cercle n'accepte plus de membres.");
       } else {
-        setInviteData(data[0]);
+        setInviteData({
+          ...data,
+          organizer_name: data.profiles?.full_name || "L'organisateur"
+        });
       }
       setIsLoading(false);
     };
@@ -46,20 +51,35 @@ export default function JoinPage({ params }: { params: { token: string } }) {
     }
 
     setIsJoining(true);
-    const { data, error } = await supabase
-      .rpc('join_circle_by_token', { p_token: params.token });
+    
+    // Check if already a member
+    const { data: existing, error: checkError } = await supabase
+      .from('memberships')
+      .select('id')
+      .eq('circle_id', inviteData.id)
+      .eq('user_id', user.id)
+      .single();
+      
+    if (existing) {
+      router.push(`/cercles/${inviteData.id}`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('memberships')
+      .insert({
+        circle_id: inviteData.id,
+        user_id: user.id,
+        role: 'member',
+        status: 'active'
+      });
 
     if (error) {
       console.error("Error joining circle:", error);
       setError("Une erreur est survenue lors de l'adhésion.");
       setIsJoining(false);
     } else {
-      if (data.success) {
-        router.push(`/cercles/${data.circle_id}`);
-      } else {
-        setError(data.message || "Impossible de rejoindre ce cercle.");
-        setIsJoining(false);
-      }
+      router.push(`/cercles/${inviteData.id}`);
     }
   };
 
@@ -126,10 +146,25 @@ export default function JoinPage({ params }: { params: { token: string } }) {
       </div>
 
       <div className="space-y-4">
+        {user && (
+          <label className="flex items-start gap-3 cursor-pointer p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-border">
+            <input 
+              type="checkbox" 
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              className="w-5 h-5 rounded text-primary focus:ring-primary accent-primary cursor-pointer mt-0.5" 
+            />
+            <span className="text-xs text-textSecondary leading-snug">
+              J'ai lu et j'accepte la <a href="#" className="text-primary hover:underline">Charte de la Tontine</a>. 
+              Je m'engage à payer mes cotisations à temps sous peine de pénalités.
+            </span>
+          </label>
+        )}
+
         <button 
           onClick={handleJoin}
-          disabled={isJoining}
-          className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-0.5"
+          disabled={isJoining || (user && !accepted)}
+          className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5"
         >
           {isJoining ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

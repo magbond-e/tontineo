@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Users, Wallet, AlertCircle, CalendarClock, MoreVertical, CheckCircle2, Clock, XCircle, ChevronDown, ChevronUp, History, Info, Smartphone, Loader2, Share2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 
 export default function CercleDetailsPage({ params }: { params: { id: string } }) {
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null);
@@ -30,6 +31,32 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
     navigator.clipboard.writeText(`${appUrl}/join/${cercle.invite_token}`);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleDraw = async () => {
+    if (!activeCycle) return;
+    const confirmDraw = window.confirm(`Voulez-vous déclencher le tirage de ${cercle.potCollected.toLocaleString('fr-FR')} FCFA ?`);
+    if (!confirmDraw) return;
+    
+    setIsPaying(true);
+    try {
+      const res = await fetch('/api/circles/draw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ circle_id: cercle.id, cycle_id: activeCycle.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMessage(`🎉 Le tirage a été effectué avec succès !\n\n${data.winner} a remporté ${data.amount.toLocaleString('fr-FR')} FCFA.\nLe paiement FedaPay a été initié.`);
+        setShowSuccessModal(true);
+      } else {
+        alert(data.error || "Erreur lors du tirage.");
+      }
+    } catch (e) {
+      alert("Erreur inattendue.");
+    } finally {
+      setIsPaying(false);
+    }
   };
 
   const handleStartCircle = async () => {
@@ -111,6 +138,41 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
     }
   };
 
+  const handleWalletPayment = async () => {
+    if (!activeCycle) {
+      alert("La tontine n'a pas de cycle actif pour le moment.");
+      return;
+    }
+    const confirmPay = window.confirm(`Voulez-vous payer ${cercle.amount.toLocaleString('fr-FR')} FCFA depuis votre portefeuille Tontineo ?`);
+    if (!confirmPay) return;
+    
+    setIsPaying(true);
+    try {
+      const response = await fetch('/api/payments/wallet-pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          circle_id: cercle.id,
+          cycle_id: activeCycle.id,
+          amount: cercle.amount
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSuccessMessage(`🎉 Paiement de ${cercle.amount} FCFA validé depuis votre portefeuille !`);
+        setShowSuccessModal(true);
+      } else {
+        alert(data.error || "Erreur lors du paiement par portefeuille.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Une erreur inattendue est survenue");
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
   // Nouveau useEffect pour simuler le webhook FedaPay (Mode local uniquement)
   useEffect(() => {
     if (typeof window !== "undefined" && user && activeCycle && cercle && !hasFiredWebhook) {
@@ -147,6 +209,27 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
       }
     }
   }, [user, activeCycle, cercle, hasFiredWebhook]);
+
+  const handleRemoveMember = async (userId: string, userName: string) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir exclure ${userName} de ce cercle ?`)) return;
+    
+    try {
+      const res = await fetch('/api/circles/members/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ circle_id: cercle.id, user_id_to_remove: userId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMembers(members.filter(m => m.user_id !== userId));
+        setCercle(prev => ({ ...prev, currentMembers: prev.currentMembers - 1 }));
+      } else {
+        alert(data.error || "Erreur lors de l'exclusion");
+      }
+    } catch (e) {
+      alert("Erreur inattendue");
+    }
+  };
 
   useEffect(() => {
     const fetchCercleDetails = async () => {
@@ -371,14 +454,24 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                   <CheckCircle2 size={18} className="shrink-0" /> À jour pour ce tour
                 </div>
               ) : (
-                <button 
-                  onClick={handlePayment}
-                  disabled={isPaying}
-                  className="flex-1 md:flex-none px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105 disabled:opacity-70 flex items-center justify-center gap-2"
-                >
-                  {isPaying ? <Loader2 size={18} className="animate-spin" /> : <Wallet size={18} />}
-                  {isPaying ? "Redirection..." : "Cotiser"}
-                </button>
+                <>
+                  <button 
+                    onClick={handlePayment}
+                    disabled={isPaying}
+                    className="flex-1 md:flex-none px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:scale-105 disabled:opacity-70 flex items-center justify-center gap-2"
+                  >
+                    {isPaying ? <Loader2 size={18} className="animate-spin" /> : <Wallet size={18} />}
+                    {isPaying ? "Redirection..." : "Mobile Money"}
+                  </button>
+                  <button 
+                    onClick={handleWalletPayment}
+                    disabled={isPaying}
+                    className="flex-1 md:flex-none px-6 py-2.5 bg-surface border border-primary text-primary hover:bg-primary/5 font-bold rounded-xl shadow-sm transition-all hover:scale-105 disabled:opacity-70 flex items-center justify-center gap-2"
+                  >
+                    <Wallet size={18} />
+                    Portefeuille
+                  </button>
+                </>
               )
             )}
           </div>
@@ -431,8 +524,13 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                 <p>En attente de 2 paiements pour compléter le pot.</p>
               </div>
             )}
-            {cercle.isOrganizer && potProgress === 100 && (
-               <button className="w-full mt-4 py-2.5 bg-textPrimary hover:bg-black text-white font-bold rounded-xl transition-all shadow-md">
+            {cercle.isOrganizer && potProgress >= 100 && (
+               <button 
+                 onClick={handleDraw}
+                 disabled={isPaying}
+                 className="w-full mt-4 py-2.5 bg-textPrimary hover:bg-black text-white font-bold rounded-xl transition-all shadow-md disabled:opacity-70 flex items-center justify-center gap-2"
+               >
+                 {isPaying ? <Loader2 size={18} className="animate-spin" /> : null}
                  Déclencher le tirage
                </button>
             )}
@@ -477,6 +575,13 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                 <span className="text-textSecondary flex items-center gap-2"><Info size={16} /> Type de tirage</span>
                 <span className="font-bold text-textPrimary">{cercle.drawType}</span>
               </div>
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-border">
+              <a href={`mailto:support@tontineo.app?subject=Litige%20Cercle%20${cercle.id}&body=Bonjour,%20je%20souhaite%20signaler%20un%20problème%20sur%20le%20cercle%20${cercle.name}.`} className="w-full py-2.5 bg-danger/10 hover:bg-danger/20 text-danger font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
+                <AlertCircle size={16} />
+                Signaler un problème / Litige
+              </a>
             </div>
           </div>
         </div>
@@ -534,13 +639,26 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                       </td>
                       {cercle.isOrganizer && (
                         <td className="px-6 py-4 text-right">
-                          {member.status !== 'Payé' ? (
-                            <button className="p-2 bg-surface border border-border rounded-lg shadow-sm text-textSecondary hover:text-primary hover:border-primary transition-all hover:-translate-y-0.5 group-hover:bg-primary/5" title="Relancer sur WhatsApp">
-                              <Smartphone size={16} />
-                            </button>
-                          ) : (
-                            <span className="text-textSecondary opacity-50 px-4">-</span>
-                          )}
+                          <div className="flex justify-end gap-2">
+                            {member.status !== 'Payé' && (
+                              <button 
+                                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ${member.name}, c'est le moment de payer ta cotisation de ${cercle.amount.toLocaleString('fr-FR')} FCFA pour la tontine "${cercle.name}" ! Connecte-toi sur Tontineo pour régler.`)}`, '_blank')}
+                                className="p-2 bg-surface border border-border rounded-lg shadow-sm text-textSecondary hover:text-primary hover:border-primary transition-all hover:-translate-y-0.5 group-hover:bg-primary/5" 
+                                title="Relancer sur WhatsApp"
+                              >
+                                <Smartphone size={16} />
+                              </button>
+                            )}
+                            {member.user_id !== user?.id && (
+                              <button 
+                                onClick={() => handleRemoveMember(member.user_id, member.name)}
+                                className="p-2 bg-surface border border-border rounded-lg shadow-sm text-textSecondary hover:text-danger hover:border-danger transition-all hover:-translate-y-0.5 group-hover:bg-danger/5" 
+                                title="Exclure ce membre"
+                              >
+                                <XCircle size={16} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -612,9 +730,9 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                           </div>
                           <div>
                             <p className="text-xs text-textSecondary mb-1">Preuve du tirage</p>
-                            <p className="font-bold text-primary font-mono text-xs cursor-pointer hover:underline flex items-center gap-1">
-                              0x8f...2a4c
-                            </p>
+                            <Link href={`/verify/draw/${cycle.id}`} className="font-bold text-primary font-mono text-xs hover:underline flex items-center gap-1">
+                              Voir le certificat
+                            </Link>
                           </div>
                         </div>
                         
