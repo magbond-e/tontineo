@@ -35,14 +35,17 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       setError("");
 
       const supabase = createClient();
-      const { error: updateError } = await supabase.from('profiles').update({
+      const { data, error: updateError } = await supabase.from('profiles').update({
         city: city,
         whatsapp: whatsapp,
         phone: momo
-      }).eq('id', user.id);
+      }).eq('id', user.id).select();
 
       if (updateError) {
         setError("Erreur lors de la sauvegarde : " + updateError.message);
+        setIsSaving(false);
+      } else if (!data || data.length === 0) {
+        setError("Impossible d'enregistrer vos données. Les droits (RLS) sont peut-être manquants.");
         setIsSaving(false);
       } else {
         // Recharger la page pour forcer la mise à jour du contexte AuthContext 
@@ -86,7 +89,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
               <input
                 type="text"
                 value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
+                onChange={(e) => setWhatsapp(e.target.value.replace(/[^0-9+\s]/g, ''))}
                 placeholder="+229 00 00 00 00"
                 className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-textPrimary"
                 required
@@ -99,7 +102,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
               <input
                 type="text"
                 value={momo}
-                onChange={(e) => setMomo(e.target.value)}
+                onChange={(e) => setMomo(e.target.value.replace(/[^0-9+\s]/g, ''))}
                 placeholder="Ex: 97 00 00 00"
                 className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-textPrimary"
                 required

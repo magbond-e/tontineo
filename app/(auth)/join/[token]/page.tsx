@@ -24,20 +24,15 @@ export default function JoinPage({ params }: { params: { token: string } }) {
 
   useEffect(() => {
     const fetchCircleInfo = async () => {
+      // Use RPC to bypass RLS for non-members
       const { data, error } = await supabase
-        .from('circles')
-        .select('*, profiles:organizer_id(full_name)')
-        .eq('invite_token', params.token)
-        .single();
+        .rpc('get_circle_info_by_token', { p_token: params.token });
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         console.error("Error fetching circle info:", error);
         setError("Ce lien d'invitation est invalide, expiré, ou le cercle n'accepte plus de membres.");
       } else {
-        setInviteData({
-          ...data,
-          organizer_name: data.profiles?.full_name || "L'organisateur"
-        });
+        setInviteData(data[0]);
       }
       setIsLoading(false);
     };
@@ -81,13 +76,21 @@ export default function JoinPage({ params }: { params: { token: string } }) {
       setError("Une erreur est survenue lors de la demande d'adhésion.");
       setIsJoining(false);
     } else {
-      // Add notification for the organizer
-      await supabase.from('notifications').insert({
-        user_id: inviteData.organizer_id,
-        title: 'Nouvelle demande d\'adhésion',
-        description: `Un nouvel utilisateur souhaite rejoindre votre cercle "${inviteData.name}".`,
-        unread: true
-      });
+      // Fetch organizer_id now that we have read access to the circle
+      const { data: circleData } = await supabase
+        .from('circles')
+        .select('organizer_id')
+        .eq('id', inviteData.id)
+        .single();
+
+      if (circleData?.organizer_id) {
+        await supabase.from('notifications').insert({
+          user_id: circleData.organizer_id,
+          title: 'Nouvelle demande d\'adhésion',
+          description: `Un nouvel utilisateur souhaite rejoindre votre cercle "${inviteData.name}".`,
+          unread: true
+        });
+      }
       
       router.push(`/cercles/${inviteData.id}?joined=pending`);
     }
