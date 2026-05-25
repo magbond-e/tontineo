@@ -173,7 +173,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
 
         <button 
           onClick={handleJoin}
-          disabled={isJoining || (user && !accepted)}
+          disabled={isJoining || (user ? !accepted : false)}
           className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5"
         >
           {isJoining ? (
