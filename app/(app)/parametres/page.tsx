@@ -14,6 +14,8 @@ export default function ParametresPage() {
   const [docType, setDocType] = useState("cip");
   
   // Profil Form State
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [email, setEmail] = useState("");
@@ -88,11 +90,41 @@ export default function ParametresPage() {
           if (profile.email_enabled !== null) setEmailEnabled(profile.email_enabled);
           if (profile.has_pin !== undefined) setHasPin(profile.has_pin);
           if (profile.kyc_status) setKycStatus(profile.kyc_status);
+          if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
         }
       }
     };
     fetchProfile();
   }, [user, userProfile, supabase]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const res = await fetch('/api/profile/avatar', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setSaveError("Erreur lors de l'upload: " + (data.error || "Erreur inconnue"));
+      } else {
+        setAvatarUrl(data.avatar_url);
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+      }
+    } catch (err: any) {
+      setSaveError("Erreur réseau: " + err.message);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const handleKycSubmit = async () => {
     if (!frontFile) {
@@ -372,15 +404,22 @@ export default function ParametresPage() {
             <div className="flex flex-col md:flex-row gap-8 mb-8">
               {/* Avatar */}
               <div className="flex flex-col items-center gap-3">
-                <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-border relative group cursor-pointer overflow-hidden">
+                <label className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-border relative group cursor-pointer overflow-hidden">
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl font-bold text-textSecondary uppercase">
+                      {userProfile ? userProfile.name.substring(0, 2) : "UT"}
+                    </span>
+                  )}
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="text-white" size={24} />
+                    {isUploadingAvatar ? <Loader2 className="text-white animate-spin" size={24} /> : <Camera className="text-white" size={24} />}
                   </div>
-                  <span className="text-3xl font-bold text-textSecondary uppercase">
-                    {userProfile ? userProfile.name.substring(0, 2) : "UT"}
-                  </span>
-                </div>
-                <span className="text-xs font-bold text-primary cursor-pointer hover:underline">{t("change_photo")}</span>
+                </label>
+                <span className="text-xs font-bold text-primary cursor-pointer hover:underline">
+                  {isUploadingAvatar ? "Envoi en cours..." : t("change_photo")}
+                </span>
               </div>
               
               {/* Fields */}

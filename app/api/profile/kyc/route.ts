@@ -61,8 +61,8 @@ export async function POST(req: Request) {
       .update({ 
         kyc_status: 'pending',
         kyc_doc_type: docType,
-        kyc_front_url: frontUrl,
-        kyc_back_url: backUrl || null
+        kyc_doc_front: frontUrl,
+        kyc_doc_back: backUrl || null
       })
       .eq('id', user.id);
 
