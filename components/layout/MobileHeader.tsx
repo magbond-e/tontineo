@@ -141,8 +141,8 @@ export function MobileHeader() {
           </Link>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="relative" ref={notifRef}>
+        <div className="flex items-center gap-4 relative" ref={notifRef}>
+          <div>
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative text-textSecondary hover:text-textPrimary transition-colors mt-1"
@@ -155,7 +155,7 @@ export function MobileHeader() {
 
             {/* Notifications Dropdown for Mobile */}
             {showNotifications && (
-              <div className="absolute right-0 mt-4 w-[300px] bg-surface border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+              <div className="absolute right-0 top-full mt-4 w-[300px] max-w-[calc(100vw-32px)] bg-surface border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                 <div className="p-4 border-b border-border flex justify-between items-center bg-gray-50 dark:bg-slate-800">
                   <h3 className="font-bold text-textPrimary text-sm">Notifications</h3>
                 </div>

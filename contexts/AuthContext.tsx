@@ -25,7 +25,8 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileData, setProfileData] = useState<{
     name: string;
     email: string;
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Error fetching session:", error);
       } finally {
-        setIsLoading(false);
+        setIsAuthLoading(false);
       }
     };
 
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      setIsLoading(false);
+      setIsAuthLoading(false);
     });
 
     return () => {
@@ -65,10 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) {
       setProfileData(null);
+      setIsProfileLoading(false);
       return;
     }
 
     const fetchProfile = async () => {
+      setIsProfileLoading(true);
       const { data, error } = await supabase
         .from("profiles")
         .select("full_name, avatar_url, whatsapp, city, phone")
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           phone: "",
         });
       }
+      setIsProfileLoading(false);
     };
 
     fetchProfile();
@@ -151,6 +155,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     city: "",
     phone: "",
   } : null);
+
+  const isLoading = isAuthLoading || (user !== null && isProfileLoading);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, userProfile }}>

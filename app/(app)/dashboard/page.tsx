@@ -247,9 +247,9 @@ export default function DashboardPage() {
           <p className="text-textSecondary mt-1">{t("dash_subtitle")}</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 relative" ref={notifRef}>
           {/* Notifications Toggle */}
-          <div className="relative hidden md:block" ref={notifRef}>
+          <div className="hidden md:block">
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
               className="w-11 h-11 bg-surface border border-border rounded-full flex items-center justify-center text-textSecondary hover:text-primary transition-colors shadow-sm relative mt-1"
@@ -262,7 +262,7 @@ export default function DashboardPage() {
             
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-surface border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+              <div className="absolute right-0 top-full mt-2 w-80 bg-surface border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                 <div className="p-4 border-b border-border flex justify-between items-center bg-gray-50 dark:bg-slate-800">
                   <h3 className="font-bold text-textPrimary text-sm">Notifications</h3>
                 </div>
