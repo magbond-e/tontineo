@@ -175,8 +175,12 @@ export function Sidebar() {
             title="Profil"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-textPrimary flex items-center justify-center text-surface font-bold shadow-sm shrink-0 uppercase">
-                {userProfile ? userProfile.name.substring(0, 2) : "UT"}
+              <div className="w-9 h-9 rounded-full bg-textPrimary flex items-center justify-center text-surface font-bold shadow-sm shrink-0 uppercase overflow-hidden">
+                {userProfile?.avatarUrl ? (
+                  <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full object-cover" />
+                ) : (
+                  userProfile ? userProfile.name.substring(0, 2) : "UT"
+                )}
               </div>
               {!isCollapsed && (
                 <div className="flex flex-col overflow-hidden pr-2">

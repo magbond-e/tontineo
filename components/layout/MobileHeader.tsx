@@ -188,8 +188,12 @@ export function MobileHeader() {
             )}
           </div>
 
-          <div className="w-8 h-8 rounded-full bg-textPrimary flex items-center justify-center text-surface text-xs font-bold shadow-sm uppercase shrink-0">
-            {userProfile ? userProfile.name.substring(0, 2) : "UT"}
+          <div className="w-8 h-8 rounded-full bg-textPrimary flex items-center justify-center text-surface text-xs font-bold shadow-sm uppercase shrink-0 overflow-hidden">
+            {userProfile?.avatarUrl ? (
+              <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full object-cover" />
+            ) : (
+              userProfile ? userProfile.name.substring(0, 2) : "UT"
+            )}
           </div>
         </div>
       </header>
@@ -245,8 +249,12 @@ export function MobileHeader() {
             <div className="p-4 mt-auto border-t border-border">
               <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-slate-800 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-textPrimary flex items-center justify-center text-surface font-bold shadow-sm uppercase shrink-0">
-                    {userProfile ? userProfile.name.substring(0, 2) : "UT"}
+                  <div className="w-10 h-10 rounded-full bg-textPrimary flex items-center justify-center text-surface font-bold shadow-sm uppercase shrink-0 overflow-hidden">
+                    {userProfile?.avatarUrl ? (
+                      <img src={userProfile.avatarUrl} alt={userProfile.name} className="w-full h-full object-cover" />
+                    ) : (
+                      userProfile ? userProfile.name.substring(0, 2) : "UT"
+                    )}
                   </div>
                   <div className="flex flex-col overflow-hidden">
                     <span className="text-sm font-bold text-textPrimary truncate max-w-[140px]">{userProfile ? userProfile.name : "Utilisateur"}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 
@@ -15,12 +15,14 @@ interface AuthContextType {
     city: string;
     phone: string;
   } | null;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   userProfile: null,
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -63,15 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase.auth]);
 
-  useEffect(() => {
-    if (!user) {
-      setProfileData(null);
-      setIsProfileLoading(false);
-      return;
-    }
-
-    const fetchProfile = async () => {
-      setIsProfileLoading(true);
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    setIsProfileLoading(true);
+    try {
       const { data, error } = await supabase
         .from("profiles")
         .select("full_name, avatar_url, whatsapp, city, phone")
@@ -117,10 +114,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           phone: "",
         });
       }
+    } catch (err) {
+      console.error("Error refreshing profile:", err);
+    } finally {
       setIsProfileLoading(false);
-    };
+    }
+  }, [user, supabase]);
 
-    fetchProfile();
+  useEffect(() => {
+    if (!user) {
+      setProfileData(null);
+      setIsProfileLoading(false);
+      return;
+    }
+
+    refreshProfile();
 
     // Subscribe to profile changes
     const channel = supabase
@@ -145,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase]);
+  }, [user, supabase, refreshProfile]);
 
   const userProfile = profileData || (user ? {
     name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur",
@@ -159,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isLoading = isAuthLoading || (user !== null && isProfileLoading);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, userProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, userProfile, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

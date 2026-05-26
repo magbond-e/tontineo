@@ -8,7 +8,7 @@ import { createClient } from "@/utils/supabase/client";
 
 export default function ParametresPage() {
   const { lang, setLang, t } = useLanguage();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, refreshProfile } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("profil");
   const [docType, setDocType] = useState("cip");
@@ -71,7 +71,11 @@ export default function ParametresPage() {
 
     const fetchProfile = async () => {
       if (user?.id) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, city, phone, whatsapp, current_plan, wa_enabled, wa_reminders_enabled, wa_draws_enabled, wa_invites_enabled, sms_enabled, email_enabled, has_pin, kyc_status, avatar_url')
+          .eq('id', user.id)
+          .single();
         if (profile) {
           setName(profile.full_name || userProfile?.name || "");
           setCity(profile.city || "");
@@ -117,6 +121,7 @@ export default function ParametresPage() {
       } else {
         setAvatarUrl(data.avatar_url);
         setSavedSuccess(true);
+        await refreshProfile();
         setTimeout(() => setSavedSuccess(false), 3000);
       }
     } catch (err: any) {
@@ -200,6 +205,7 @@ export default function ParametresPage() {
           setWaNumber(pendingWaNumber);
           setPendingWaNumber("");
         }
+        await refreshProfile();
         setTimeout(() => setSavedSuccess(false), 3000);
       }
     } else {

@@ -380,6 +380,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
             isPending: m.status === 'pending',
             date: userPayment ? new Date(userPayment.completed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : "-",
             avatar: m.profiles?.full_name ? m.profiles.full_name.substring(0, 2).toUpperCase() : "UT",
+            avatarUrl: m.profiles?.avatar_url || null,
             trustScore: m.profiles?.trust_score || 50
           };
         });
@@ -701,8 +702,12 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                     <tr key={member.id} className={`hover:bg-gray-50/50 transition-colors group ${member.isPending ? 'opacity-70 bg-gray-50/30' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm shrink-0 ${member.role === 'Organisateur' ? 'bg-primary text-white' : 'bg-gray-100 text-textPrimary'}`}>
-                            {member.avatar}
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm shrink-0 ${member.role === 'Organisateur' ? 'bg-primary text-white' : 'bg-gray-100 text-textPrimary'} overflow-hidden`}>
+                            {member.avatarUrl ? (
+                              <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                            ) : (
+                              member.avatar
+                            )}
                           </div>
                           <div>
                             <p className="font-bold text-textPrimary text-sm">{member.name} {member.isPending && <span className="text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full ml-2">En attente d'approbation</span>}</p>
