@@ -214,6 +214,19 @@ export const translations = {
     carousel_3_title: "Alertes Intelligentes",
     carousel_3_desc: "Ne manquez jamais un paiement grâce aux relances automatiques WhatsApp.",
     
+    // Onboarding
+    onboarding_1_title: "Bienvenue sur Tontineo",
+    onboarding_1_desc: "Découvrez la nouvelle façon de gérer vos tontines de manière sécurisée, transparente et 100% digitale.",
+    onboarding_2_title: "Rejoignez ou créez un cercle",
+    onboarding_2_desc: "Participez à des cercles de confiance avec vos amis ou votre famille. Suivez les cotisations et les tirages en temps réel.",
+    onboarding_3_title: "Finalisez votre profil",
+    onboarding_3_desc: "Ajoutez vos numéros WhatsApp et Mobile Money pour faciliter vos futures transactions et communications.",
+    onboarding_whatsapp: "WhatsApp",
+    onboarding_momo: "Mobile Money (Momo)",
+    btn_prev: "Précédent",
+    btn_next: "Suivant",
+    btn_finish: "Terminer",
+
     // Logout Modal
     logout_title: "Déconnexion",
     logout_desc: "Êtes-vous sûr de vouloir vous déconnecter de Tontineo ?",

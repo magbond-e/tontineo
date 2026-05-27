@@ -17,25 +17,25 @@ export function OnboardingGuide() {
   const slides = [
     {
       id: 1,
-      title: "Bienvenue sur Tontineo",
-      description: "Découvrez la nouvelle façon de gérer vos tontines de manière sécurisée, transparente et 100% digitale.",
+      title: t("onboarding_1_title"),
+      description: t("onboarding_1_desc"),
       icon: <Wallet size={48} className="text-primary mb-4 mx-auto" />,
     },
     {
       id: 2,
-      title: "Rejoignez ou créez un cercle",
-      description: "Participez à des cercles de confiance avec vos amis ou votre famille. Suivez les cotisations et les tirages en temps réel.",
+      title: t("onboarding_2_title"),
+      description: t("onboarding_2_desc"),
       icon: <Users size={48} className="text-primary mb-4 mx-auto" />,
     },
     {
       id: 3,
-      title: "Finalisez votre profil",
-      description: "Ajoutez vos numéros WhatsApp et Mobile Money pour faciliter vos futures transactions et communications.",
+      title: t("onboarding_3_title"),
+      description: t("onboarding_3_desc"),
       icon: <ShieldCheck size={48} className="text-primary mb-4 mx-auto" />,
       content: (
         <div className="space-y-4 mt-4 text-left">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-textPrimary uppercase tracking-wider">WhatsApp</label>
+            <label className="text-xs font-bold text-textPrimary uppercase tracking-wider">{t("onboarding_whatsapp")}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-textSecondary">
                 <Phone size={16} />
@@ -50,7 +50,7 @@ export function OnboardingGuide() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-textPrimary uppercase tracking-wider">Mobile Money (Momo)</label>
+            <label className="text-xs font-bold text-textPrimary uppercase tracking-wider">{t("onboarding_momo")}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-textSecondary">
                 <DollarSign size={16} />
@@ -155,7 +155,7 @@ export function OnboardingGuide() {
                 disabled={isSaving}
                 className="flex-1 py-3 bg-background border border-border text-textPrimary font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
               >
-                Précédent
+                {t("btn_prev")}
               </button>
             )}
             <button 
@@ -166,9 +166,9 @@ export function OnboardingGuide() {
               {isSaving ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : currentSlide === slides.length - 1 ? (
-                "Terminer"
+                t("btn_finish")
               ) : (
-                <>Suivant <ChevronRight size={18} /></>
+                <>{t("btn_next")} <ChevronRight size={18} /></>
               )}
             </button>
           </div>
