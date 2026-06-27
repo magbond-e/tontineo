@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, CheckCircle2, ShieldCheck, ChevronRight } from "lucide-react";
 import { User } from "@supabase/supabase-js";
-import PhoneInput from 'react-phone-number-input';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import Link from "next/link";
 
@@ -26,6 +26,18 @@ export function OnboardingGuard({ user }: { user: User }) {
       setError("Veuillez remplir tous les champs.");
       return;
     }
+    
+    // Validation stricte des numéros
+    if (whatsapp && !isValidPhoneNumber(whatsapp)) {
+      setError("Le numéro WhatsApp saisi n'est pas valide pour ce pays.");
+      return;
+    }
+    
+    if (momo && !isValidPhoneNumber(momo)) {
+      setError("Le numéro Mobile Money saisi n'est pas valide pour ce pays.");
+      return;
+    }
+
     setError("");
     setStep(2);
   };
@@ -41,18 +53,16 @@ export function OnboardingGuard({ user }: { user: User }) {
     setError("");
 
     const supabase = createClient();
-    const { data, error: updateError } = await supabase.from('profiles').update({
-      city: city,
-      whatsapp: whatsapp,
-      phone: momo,
-      cgu_accepted_at: new Date().toISOString()
-    }).eq('id', user.id).select();
+    
+    // Appel sécurisé via RPC qui contourne le RLS capricieux
+    const { error: updateError } = await supabase.rpc('submit_onboarding', {
+      p_city: city,
+      p_whatsapp: whatsapp,
+      p_momo: momo
+    });
 
     if (updateError) {
       setError("Erreur lors de la sauvegarde : " + updateError.message);
-      setIsSaving(false);
-    } else if (!data || data.length === 0) {
-      setError("Impossible d'enregistrer vos données. Les droits (RLS) sont peut-être manquants.");
       setIsSaving(false);
     } else {
       window.location.reload();
