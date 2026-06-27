@@ -63,7 +63,7 @@ export async function updateSession(request: NextRequest) {
   // Protect routes based on user session
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname.startsWith("/register") || request.nextUrl.pathname.startsWith("/forgot-password") || request.nextUrl.pathname.startsWith("/api/payments/webhook");
   const isCallbackRoute = request.nextUrl.pathname.startsWith("/auth/callback");
-  const isPublicRoute = request.nextUrl.pathname.startsWith("/verify") || request.nextUrl.pathname.startsWith("/join");
+  const isPublicRoute = request.nextUrl.pathname.startsWith("/verify") || request.nextUrl.pathname.startsWith("/join") || request.nextUrl.pathname.startsWith("/legal");
   
   if (
     !user &&

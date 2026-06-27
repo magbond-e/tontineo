@@ -8,11 +8,11 @@ import { createClient } from "@/utils/supabase/client";
 export default function SubscriptionPage() {
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<'free' | 'premium' | 'pro'>('premium');
+  const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro' | 'business'>('pro');
   const [showSkeleton, setShowSkeleton] = useState(false);
   
   const supabase = createClient();
-  const [currentPlan, setCurrentPlan] = useState<'free' | 'premium' | 'pro'>('free');
+  const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'business'>('free');
   const [isFetching, setIsFetching] = useState(true);
 
   useEffect(() => {
@@ -20,8 +20,8 @@ export default function SubscriptionPage() {
       if (user) {
         const { data } = await supabase.from('profiles').select('current_plan').eq('id', user.id).single();
         if (data && data.current_plan) {
-          setCurrentPlan(data.current_plan as 'free' | 'premium' | 'pro');
-          setSelectedPlan(data.current_plan as 'free' | 'premium' | 'pro');
+          setCurrentPlan(data.current_plan as 'free' | 'pro' | 'business');
+          setSelectedPlan(data.current_plan as 'free' | 'pro' | 'business');
         }
       }
       setIsFetching(false);
@@ -32,13 +32,18 @@ export default function SubscriptionPage() {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('payment') === 'success' && urlParams.get('plan')) {
-        const planToUpgrade = urlParams.get('plan') as 'premium' | 'pro';
+        const planToUpgrade = urlParams.get('plan') as 'pro' | 'business';
         setShowSkeleton(true);
         
         // Simulate webhook processing time
         setTimeout(async () => {
           if (user) {
-            await supabase.from('profiles').update({ current_plan: planToUpgrade }).eq('id', user.id);
+            // For the PRO trial, we also set the trial_ends_at
+            if (planToUpgrade === 'pro') {
+              await supabase.rpc('start_premium_trial'); // Use our custom RPC from migration
+            } else {
+              await supabase.from('profiles').update({ current_plan: planToUpgrade }).eq('id', user.id);
+            }
             setCurrentPlan(planToUpgrade);
             setSelectedPlan(planToUpgrade);
           }
@@ -153,10 +158,10 @@ export default function SubscriptionPage() {
         </div>
 
         {/* PREMIUM PLAN */}
-        <div className={`bg-surface border ${selectedPlan === 'premium' ? 'border-primary shadow-2xl ring-4 ring-primary/20 scale-105' : 'border-border'} rounded-3xl p-8 relative transition-all cursor-pointer hover:border-primary/50 z-10`}
-             onClick={() => setSelectedPlan('premium')}>
+        <div className={`bg-surface border ${selectedPlan === 'pro' ? 'border-primary shadow-2xl ring-4 ring-primary/20 scale-105' : 'border-border'} rounded-3xl p-8 relative transition-all cursor-pointer hover:border-primary/50 z-10`}
+             onClick={() => setSelectedPlan('pro')}>
           <div className="absolute top-0 inset-x-0 flex justify-center transform -translate-y-1/2">
-            <span className="bg-primary text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider shadow-md">Recommandé</span>
+            <span className="bg-primary text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider shadow-md">🎉 30 Jours d'Essai Gratuit</span>
           </div>
           <h3 className="text-xl font-bold text-primary mb-2 flex items-center gap-2">
             <Star size={20} fill="currentColor" /> Premium
@@ -188,17 +193,17 @@ export default function SubscriptionPage() {
           
           <button 
             onClick={handleUpgrade}
-            disabled={isProcessing && selectedPlan === 'premium'}
+            disabled={isProcessing && selectedPlan === 'pro'}
             className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 hover:-translate-y-1"
           >
-            {isProcessing && selectedPlan === 'premium' ? <Loader2 size={20} className="animate-spin" /> : <Zap size={20} fill="currentColor" />}
-            {isProcessing && selectedPlan === 'premium' ? "Préparation..." : "Passer Premium"}
+            {isProcessing && selectedPlan === 'pro' ? <Loader2 size={20} className="animate-spin" /> : <Zap size={20} fill="currentColor" />}
+            {currentPlan === 'pro' ? "Votre plan actuel" : (isProcessing && selectedPlan === 'pro' ? "Préparation..." : "Démarrer l'essai (30 jours)")}
           </button>
         </div>
 
-        {/* PRO PLAN */}
-        <div className={`bg-gray-900 border ${selectedPlan === 'pro' ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-gray-800'} rounded-3xl p-8 relative transition-all cursor-pointer hover:border-gray-700`}
-             onClick={() => setSelectedPlan('pro')}>
+        {/* BUSINESS PLAN */}
+        <div className={`bg-gray-900 border ${selectedPlan === 'business' ? 'border-primary shadow-lg ring-2 ring-primary/20' : 'border-gray-800'} rounded-3xl p-8 relative transition-all cursor-pointer hover:border-gray-700`}
+             onClick={() => setSelectedPlan('business')}>
           <h3 className="text-xl font-bold text-white mb-2">Pro / Entreprise</h3>
           <div className="mb-6">
             <span className="text-4xl font-extrabold text-white">10 000</span>
@@ -227,11 +232,11 @@ export default function SubscriptionPage() {
           
           <button 
             onClick={handleUpgrade}
-            disabled={isProcessing && selectedPlan === 'pro'}
+            disabled={isProcessing && selectedPlan === 'business'}
             className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
           >
-            {isProcessing && selectedPlan === 'pro' ? <Loader2 size={20} className="animate-spin" /> : null}
-            Passer Pro
+            {isProcessing && selectedPlan === 'business' ? <Loader2 size={20} className="animate-spin" /> : null}
+            Passer Business
           </button>
         </div>
 

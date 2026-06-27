@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
+import { PlanGuard } from "@/components/PlanGuard";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -33,7 +34,7 @@ export default async function AppLayout({
           {needsOnboarding ? (
             <OnboardingGuard user={user} />
           ) : (
-            children
+            <PlanGuard>{children}</PlanGuard>
           )}
         </main>
       </div>

@@ -36,7 +36,8 @@ next-env.d.ts
 .agents/
 
 # docs
-tontineo.md 
+tontineo.md
+TONTINEO_LANDING_PROMPT.md
 
 # private docs
 /docs
