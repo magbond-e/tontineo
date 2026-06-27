@@ -24,7 +24,6 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   const [hasPaidCurrentCycle, setHasPaidCurrentCycle] = useState(false);
   const [hasFiredWebhook, setHasFiredWebhook] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
-  const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [showCharte, setShowCharte] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isUpdatingCircle, setIsUpdatingCircle] = useState(false);
