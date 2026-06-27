@@ -19,11 +19,11 @@ export default async function AppLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("city, whatsapp, phone")
+    .select("city, whatsapp, phone, cgu_accepted_at")
     .eq("id", user.id)
     .single();
 
-  const needsOnboarding = !profile?.city || !profile?.whatsapp || !profile?.phone;
+  const needsOnboarding = !profile?.city || !profile?.whatsapp || !profile?.phone || !profile?.cgu_accepted_at;
 
   return (
     <div className="flex min-h-screen bg-background">
