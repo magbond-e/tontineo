@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, ShieldCheck, Zap, Star, Loader2 } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Zap, Star, Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
 
 export default function SubscriptionPage() {
   const { user } = useAuth();
@@ -13,20 +14,30 @@ export default function SubscriptionPage() {
   
   const supabase = createClient();
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'business'>('free');
+  const [activeCircles, setActiveCircles] = useState(0);
   const [isFetching, setIsFetching] = useState(true);
 
   useEffect(() => {
-    const fetchPlan = async () => {
+    const fetchPlanData = async () => {
       if (user) {
+        // Fetch plan
         const { data } = await supabase.from('profiles').select('current_plan').eq('id', user.id).single();
         if (data && data.current_plan) {
           setCurrentPlan(data.current_plan as 'free' | 'pro' | 'business');
           setSelectedPlan(data.current_plan as 'free' | 'pro' | 'business');
         }
+
+        // Fetch usage
+        const { count } = await supabase
+          .from('circles')
+          .select('*', { count: 'exact', head: true })
+          .eq('created_by', user.id);
+        
+        setActiveCircles(count || 0);
       }
       setIsFetching(false);
     };
-    fetchPlan();
+    fetchPlanData();
 
     // Check for simulated payment return
     if (typeof window !== "undefined") {
@@ -38,9 +49,8 @@ export default function SubscriptionPage() {
         // Simulate webhook processing time
         setTimeout(async () => {
           if (user) {
-            // For the PRO trial, we also set the trial_ends_at
             if (planToUpgrade === 'pro') {
-              await supabase.rpc('start_premium_trial'); // Use our custom RPC from migration
+              await supabase.rpc('start_premium_trial'); 
             } else {
               await supabase.from('profiles').update({ current_plan: planToUpgrade }).eq('id', user.id);
             }
@@ -48,7 +58,6 @@ export default function SubscriptionPage() {
             setSelectedPlan(planToUpgrade);
           }
           setShowSkeleton(false);
-          // Remove query params
           window.history.replaceState(null, '', window.location.pathname);
         }, 3000);
       }
@@ -57,11 +66,8 @@ export default function SubscriptionPage() {
 
   const handleUpgrade = async () => {
     if (selectedPlan === currentPlan) return;
-    
     setIsProcessing(true);
-    // Real flow would call FedaPay API here. We simulate redirect to FedaPay checkout:
     setTimeout(() => {
-      // Fake FedaPay URL redirect that instantly redirects back
       window.location.href = window.location.pathname + `?payment=success&plan=${selectedPlan}`;
     }, 500);
   };
@@ -92,7 +98,6 @@ export default function SubscriptionPage() {
         </div>
         <h2 className="text-2xl font-bold text-textPrimary mb-2">Validation du paiement en cours...</h2>
         <p className="text-textSecondary mb-8 text-center max-w-md">Veuillez patienter pendant que nous confirmons votre transaction auprès de notre partenaire de paiement.</p>
-        
         <div className="w-full max-w-2xl bg-surface border border-border rounded-3xl p-8 space-y-4">
           <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded-md w-1/3"></div>
           <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded-md w-1/2"></div>
@@ -102,11 +107,57 @@ export default function SubscriptionPage() {
     );
   }
 
+  const maxCircles = currentPlan === 'free' ? 1 : 'Illimité';
+  const progressPercentage = currentPlan === 'free' ? (activeCircles / 1) * 100 : (activeCircles > 0 ? 10 : 0);
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 min-h-[80vh]">
+      
+      {/* SECTION RÉCAPITULATIF (NOUVEAU) */}
+      <div className="bg-surface rounded-3xl p-6 md:p-8 border border-border shadow-sm flex flex-col md:flex-row gap-8 items-center justify-between mb-12">
+        <div className="flex-1 space-y-4 w-full">
+          <div>
+            <h2 className="text-xl font-bold text-textPrimary">Votre plan actuel : <span className="text-primary capitalize">{currentPlan === 'free' ? 'Essentiel' : currentPlan}</span></h2>
+            <p className="text-textSecondary text-sm mt-1">
+              {currentPlan === 'free' ? "Vous êtes sur le plan gratuit (limité à 1 cercle)." : "Vous profitez de toutes les fonctionnalités avancées !"}
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm font-bold text-textPrimary">
+              <span>Cercles créés</span>
+              <span>{activeCircles} / {maxCircles}</span>
+            </div>
+            <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-1000 ${currentPlan === 'free' && activeCircles >= 1 ? 'bg-danger' : 'bg-primary'}`}
+                style={{ width: \`\${currentPlan === 'free' ? progressPercentage : 100}%\` }}
+              ></div>
+            </div>
+            {currentPlan === 'free' && activeCircles >= 1 && (
+              <p className="text-xs text-danger font-bold mt-2">⚠️ Vous avez atteint la limite de votre plan actuel.</p>
+            )}
+          </div>
+        </div>
+
+        {currentPlan === 'free' && (
+          <div className="shrink-0 w-full md:w-auto">
+            <button 
+              onClick={() => {
+                setSelectedPlan('pro');
+                window.scrollTo({ top: 400, behavior: 'smooth' });
+              }}
+              className="w-full md:w-auto py-3 px-6 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 hover:-translate-y-1 animate-pulse"
+            >
+              Passer Premium <ArrowRight size={18} />
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="text-center max-w-2xl mx-auto mb-12">
         <h1 className="text-3xl md:text-4xl font-extrabold text-textPrimary tracking-tight mb-4">
-          Passez à la vitesse supérieure avec <span className="text-primary">Premium</span>
+          Gérez de plus grands cercles
         </h1>
         <p className="text-textSecondary text-lg">
           Débloquez la création illimitée de tontines, un support prioritaire et des garanties avancées.
@@ -142,10 +193,6 @@ export default function SubscriptionPage() {
             <li className="flex items-start gap-3 text-sm font-medium text-textPrimary">
               <CheckCircle2 size={20} className="text-success shrink-0" />
               Paiement Mobile Money standard
-            </li>
-            <li className="flex items-start gap-3 text-sm font-medium text-gray-400">
-              <ShieldCheck size={20} className="text-gray-300 shrink-0" />
-              Support communautaire
             </li>
           </ul>
           
@@ -224,10 +271,6 @@ export default function SubscriptionPage() {
               <CheckCircle2 size={20} className="text-white shrink-0" />
               Gestionnaire de compte dédié
             </li>
-            <li className="flex items-start gap-3 text-sm font-medium text-gray-200">
-              <CheckCircle2 size={20} className="text-white shrink-0" />
-              API Tontineo en marque blanche
-            </li>
           </ul>
           
           <button 
@@ -253,7 +296,6 @@ export default function SubscriptionPage() {
             {isProcessing ? "Traitement..." : "Résilier mon abonnement actuel"}
           </button>
         )}
-        <p className="mt-4">Besoin d'aide pour choisir ? <a href="mailto:contact@tontineo.app" className="text-primary font-bold hover:underline">Contactez notre équipe commerciale</a>.</p>
       </div>
     </div>
   );

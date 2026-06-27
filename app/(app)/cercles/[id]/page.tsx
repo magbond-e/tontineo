@@ -24,7 +24,12 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   const [hasPaidCurrentCycle, setHasPaidCurrentCycle] = useState(false);
   const [hasFiredWebhook, setHasFiredWebhook] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [showCharte, setShowCharte] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [isUpdatingCircle, setIsUpdatingCircle] = useState(false);
+  const [newStatus, setNewStatus] = useState("");
+  const [newDescription, setNewDescription] = useState("");
 
   const { user } = useAuth();
   const supabase = createClient();
@@ -247,6 +252,27 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
     }
   };
 
+  const handleUpdateCircle = async () => {
+    setIsUpdatingCircle(true);
+    try {
+      const { error } = await supabase
+        .from('circles')
+        .update({ status: newStatus, description: newDescription })
+        .eq('id', cercle.id);
+      
+      if (!error) {
+        setCercle((prev: any) => ({ ...prev, status: newStatus, description: newDescription }));
+        setShowSettingsModal(false);
+      } else {
+        alert("Erreur lors de la mise à jour");
+      }
+    } catch (e) {
+      alert("Erreur inattendue");
+    } finally {
+      setIsUpdatingCircle(false);
+    }
+  };
+
   const handleApproveMember = async (userId: string, userName: string) => {
     try {
       const res = await fetch('/api/circles/members/approve', {
@@ -329,9 +355,12 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         penalty: circleData.late_penalty_pct,
         drawType: circleData.draw_type,
         isOrganizer: circleData.organizer_id === user.id,
-        isMember: false, // Sera mis à jour après la vérification des memberships
+        isMember: false,
         image: circleData.icon_emoji || "💰"
       });
+      
+      setNewStatus(circleData.status);
+      setNewDescription(circleData.description || "");
 
       // Fetch payments for active cycle to calculate pot and check member status
       let cyclePayments: any[] = [];
@@ -503,7 +532,9 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h1 className="text-2xl md:text-3xl font-extrabold text-textPrimary tracking-tight break-words">{cercle.name}</h1>
               <div className="flex flex-wrap gap-2 mt-1 md:mt-0">
-                {/* Badges supprimés pour épurer l'interface selon demande */}
+                <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${cercle.status === 'En cours' ? 'bg-success/10 text-success border-success/20' : cercle.status === 'En attente' ? 'bg-warning/10 text-warning border-warning/20' : 'bg-gray-100 text-textSecondary border-border'}`}>
+                  {cercle.status}
+                </span>
               </div>
             </div>
             <p className="text-textSecondary text-sm md:text-base">{cercle.description}</p>
@@ -526,6 +557,15 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
                 className="flex-1 md:flex-none px-6 py-2.5 bg-textPrimary hover:bg-black text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 {isStarting ? <Loader2 size={18} className="animate-spin" /> : "Démarrer"}
+              </button>
+            )}
+            {cercle.isOrganizer && (
+              <button 
+                onClick={() => setShowSettingsModal(true)}
+                className="flex-1 md:flex-none p-2.5 bg-surface border border-border hover:bg-gray-50 text-textSecondary hover:text-textPrimary font-bold rounded-xl shadow-sm transition-all flex items-center justify-center"
+                title="Paramètres du cercle"
+              >
+                <MoreVertical size={20} />
               </button>
             )}
             {cercle.isMember && cercle.status === 'En cours' && (
@@ -876,6 +916,59 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         </div>
         )}
       </div>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-textPrimary">Paramètres du cercle</h3>
+              <button onClick={() => setShowSettingsModal(false)} className="text-textSecondary hover:text-textPrimary bg-gray-100 rounded-full p-2">
+                <XCircle size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-textPrimary mb-2">Description</label>
+                <textarea 
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-textPrimary resize-none h-24"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-textPrimary mb-2">Statut du cercle</label>
+                <select 
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-textPrimary"
+                >
+                  <option value="En attente">En attente (Recrutement)</option>
+                  <option value="En cours">En cours (Actif)</option>
+                  <option value="Suspendu">Suspendu (Pause)</option>
+                  <option value="Terminé">Terminé</option>
+                </select>
+                <p className="text-xs text-textSecondary mt-2">
+                  Suspendre un cercle désactive temporairement les cotisations et les tirages.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-border mt-6">
+                <button 
+                  onClick={handleUpdateCircle}
+                  disabled={isUpdatingCircle}
+                  className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isUpdatingCircle ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                  Enregistrer les modifications
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <DisputeModal 
         isOpen={showDisputeModal} 

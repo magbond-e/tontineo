@@ -69,12 +69,29 @@ export function MobileHeader() {
   }, []);
 
   const markAllAsRead = async () => {
+    // 1. Optimistic update (instantané visuellement)
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    
+    // 2. Appel BD
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     await supabase
       .from('notifications')
       .update({ unread: false })
       .eq('user_id', user.id);
+  };
+  
+  const handleNotifClick = async (id: string, isUnread: boolean) => {
+    if (!isUnread) return;
+    
+    // Optimistic update
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+    
+    // Update DB
+    await supabase
+      .from('notifications')
+      .update({ unread: false })
+      .eq('id', id);
   };
 
   const triggerLogoutModal = () => {
@@ -166,7 +183,11 @@ export function MobileHeader() {
                     </div>
                   ) : (
                     notifications.map((notif) => (
-                      <div key={notif.id} className={`p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${notif.unread ? 'bg-primary/5' : ''}`}>
+                      <div 
+                        key={notif.id} 
+                        onClick={() => handleNotifClick(notif.id, notif.unread)}
+                        className={`p-4 border-b border-border hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${notif.unread ? 'bg-primary/5' : ''}`}
+                      >
                         <div className="flex justify-between items-start mb-1">
                           <h4 className={`text-xs ${notif.unread ? 'font-bold text-textPrimary' : 'font-medium text-textSecondary'}`}>{notif.title}</h4>
                           <span className="text-[9px] font-bold text-textSecondary">{notif.time}</span>

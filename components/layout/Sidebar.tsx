@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LayoutDashboard, Users, Wallet, ShieldCheck, Settings, LogOut, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,6 +12,7 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { t } = useLanguage();
   const router = useRouter();
+  const pathname = usePathname();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { userProfile } = useAuth();
@@ -96,61 +97,61 @@ export function Sidebar() {
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto overflow-x-hidden hide-scrollbar">
           <Link 
             href="/dashboard" 
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname === '/dashboard' ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_dashboard")}
           >
             <div className="flex items-center justify-center w-6">
-              <LayoutDashboard size={20} className="group-hover:text-primary transition-colors" />
+              <LayoutDashboard size={20} className={pathname === '/dashboard' ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_dashboard")}</span>}
           </Link>
           <Link 
             href="/dashboard/member" 
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname === '/dashboard/member' ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_member_space")}
           >
             <div className="flex items-center justify-center w-6">
-              <Users size={20} className="group-hover:text-primary transition-colors" />
+              <Users size={20} className={pathname === '/dashboard/member' ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_member_space")}</span>}
           </Link>
           <Link 
             href="/cercles" 
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname.startsWith('/cercles') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_cercles")}
           >
             <div className="relative flex items-center justify-center w-6">
-              <Users size={20} className="group-hover:text-primary transition-colors" />
+              <Users size={20} className={pathname.startsWith('/cercles') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_cercles")}</span>}
           </Link>
           <Link 
             href="/portefeuille" 
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname.startsWith('/portefeuille') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_portefeuille")}
           >
             <div className="flex items-center justify-center w-6">
-              <Wallet size={20} className="group-hover:text-primary transition-colors" />
+              <Wallet size={20} className={pathname.startsWith('/portefeuille') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_portefeuille")}</span>}
           </Link>
           <Link 
             href="/confiance" 
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname.startsWith('/confiance') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_score")}
           >
             <div className="flex items-center justify-center w-6">
-              <ShieldCheck size={20} className="group-hover:text-primary transition-colors" />
+              <ShieldCheck size={20} className={pathname.startsWith('/confiance') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_score")}</span>}
           </Link>
           <Link 
             href="/parametres" 
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname.startsWith('/parametres') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_settings")}
           >
             <div className="flex items-center justify-center w-6">
-              <Settings size={20} className="group-hover:text-primary transition-colors" />
+              <Settings size={20} className={pathname.startsWith('/parametres') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_settings")}</span>}
           </Link>

@@ -38,7 +38,7 @@ export default function CharteModal({ isOpen, onClose, circle, onAccept, hasAcce
             <ul className="grid grid-cols-2 gap-2 font-bold text-textPrimary">
               <li>Montant : {circle.amount.toLocaleString('fr-FR')} FCFA</li>
               <li>Fréquence : {circle.frequency}</li>
-              <li>Pénalité de retard : {circle.penalty}%</li>
+              <li>Pénalité de retard : {circle.penalty.toLocaleString('fr-FR')} FCFA</li>
               <li>Type de tirage : {circle.drawType}</li>
               <li>Membres max : {circle.maxMembers}</li>
             </ul>
@@ -51,7 +51,7 @@ export default function CharteModal({ isOpen, onClose, circle, onAccept, hasAcce
 
           <section>
             <h3 className="text-base font-bold text-textPrimary mb-2">2. Pénalités et Retards</h3>
-            <p>Tout retard de paiement entraînera une pénalité de <strong>{circle.penalty}%</strong> du montant de la cotisation par jour de retard, applicable dès le lendemain de la date limite. Après 15 jours de retard, le membre est passible d'exclusion et perd ses droits sur le pot s'il ne l'a pas encore reçu.</p>
+            <p>Tout retard de paiement entraînera une pénalité de <strong>{circle.penalty.toLocaleString('fr-FR')} FCFA</strong> par jour de retard, applicable dès le lendemain de la date limite. Après 15 jours de retard, le membre est passible d'exclusion et perd ses droits sur le pot s'il ne l'a pas encore reçu.</p>
           </section>
 
           <section>

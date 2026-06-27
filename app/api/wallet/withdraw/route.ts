@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     // 1. Récupérer les informations de sécurité du profil
     const { data: profile, error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .select("wallet_balance, pin_code, failed_pin_attempts, is_locked")
+      .select("wallet_balance, pin_code, failed_pin_attempts, is_locked, pin_blocked_until, is_deactivated")
       .eq("id", user.id)
       .single();
 
@@ -38,28 +38,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Profil introuvable" }, { status: 404 });
     }
 
-    if (profile.is_locked) {
-      return NextResponse.json({ error: "Votre compte est gelé après plusieurs tentatives infructueuses. Veuillez contacter le support." }, { status: 403 });
+    if (profile.is_deactivated) {
+      return NextResponse.json({ error: "Votre compte est définitivement désactivé suite à de trop nombreuses tentatives." }, { status: 403 });
     }
 
-    // 2. Valider le code PIN
+    if (profile.pin_blocked_until && new Date(profile.pin_blocked_until) > new Date()) {
+      return NextResponse.json({ error: `Compte temporairement bloqué. Réessayez après ${new Date(profile.pin_blocked_until).toLocaleTimeString()}` }, { status: 403 });
+    }
+
+    // 2. Valider le code PIN (Avant de vérifier le solde)
     if (profile.pin_code !== pin) {
       const attempts = (profile.failed_pin_attempts || 0) + 1;
-      const shouldLock = attempts >= 3;
+      let blockedUntil = null;
+      let isDeact = false;
+
+      if (attempts >= 9) {
+        isDeact = true;
+      } else if (attempts >= 6) {
+        // block for 24h
+        blockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      } else if (attempts === 3) {
+        // block for 5h
+        blockedUntil = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString();
+      }
 
       await supabaseAdmin
         .from("profiles")
         .update({
           failed_pin_attempts: attempts,
-          is_locked: shouldLock,
+          pin_blocked_until: blockedUntil,
+          is_deactivated: isDeact,
         })
         .eq("id", user.id);
 
-      if (shouldLock) {
-        return NextResponse.json({ error: "Code PIN incorrect. Votre compte est désormais gelé." }, { status: 403 });
+      if (isDeact) {
+        return NextResponse.json({ error: "Code PIN incorrect. Votre compte est désormais désactivé." }, { status: 403 });
+      }
+      if (blockedUntil) {
+        const hours = attempts >= 6 ? 24 : 5;
+        return NextResponse.json({ error: `Code PIN incorrect. Compte bloqué pour ${hours} heures.` }, { status: 403 });
       }
 
-      return NextResponse.json({ error: `Code PIN incorrect. Tentatives restantes : ${3 - attempts}` }, { status: 400 });
+      return NextResponse.json({ error: `Code PIN erroné. Attention : ${3 - (attempts % 3)} tentative(s) avant blocage.` }, { status: 400 });
     }
 
     // 3. Valider le solde

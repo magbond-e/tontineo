@@ -1,76 +1,37 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, ChevronRight, ChevronLeft, ShieldCheck, Users, Wallet, Phone, DollarSign } from "lucide-react";
+import { X, ChevronRight, LayoutDashboard, Wallet, Users } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { createClient } from "@/utils/supabase/client";
 
 export function OnboardingGuide() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [whatsapp, setWhatsapp] = useState("");
-  const [momo, setMomo] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const supabase = createClient();
 
   const slides = [
     {
       id: 1,
-      title: t("onboarding_1_title"),
-      description: t("onboarding_1_desc"),
-      icon: <Wallet size={48} className="text-primary mb-4 mx-auto" />,
+      title: "Bienvenue sur Tontineo 🎉",
+      description: "Votre nouvelle plateforme pour gérer vos tontines de manière transparente et sécurisée. Faisons un petit tour du propriétaire pour bien démarrer !",
+      icon: <LayoutDashboard size={48} className="text-primary mb-4 mx-auto" />,
     },
     {
       id: 2,
-      title: t("onboarding_2_title"),
-      description: t("onboarding_2_desc"),
+      title: "Vos Cercles (Tontines)",
+      description: "Dans l'onglet 'Mes cercles', vous pouvez créer ou rejoindre des tontines. C'est ici que vous définirez les montants, les cycles et que vous gérerez vos membres.",
       icon: <Users size={48} className="text-primary mb-4 mx-auto" />,
     },
     {
       id: 3,
-      title: t("onboarding_3_title"),
-      description: t("onboarding_3_desc"),
-      icon: <ShieldCheck size={48} className="text-primary mb-4 mx-auto" />,
-      content: (
-        <div className="space-y-4 mt-4 text-left">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-textPrimary uppercase tracking-wider">{t("onboarding_whatsapp")}</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-textSecondary">
-                <Phone size={16} />
-              </div>
-              <input
-                type="tel"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-                placeholder="+229 00000000"
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-medium"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-textPrimary uppercase tracking-wider">{t("onboarding_momo")}</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-textSecondary">
-                <DollarSign size={16} />
-              </div>
-              <input
-                type="tel"
-                value={momo}
-                onChange={(e) => setMomo(e.target.value)}
-                placeholder="+229 00000000"
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm font-medium"
-              />
-            </div>
-          </div>
-        </div>
-      )
+      title: "Votre Portefeuille Sécurisé",
+      description: "Toutes vos cotisations et vos gains transitent par votre portefeuille sécurisé. Vous pouvez retirer votre argent vers Mobile Money à tout moment via l'onglet 'Portefeuille'.",
+      icon: <Wallet size={48} className="text-primary mb-4 mx-auto" />,
     }
   ];
 
   useEffect(() => {
-    const hasSeenGuide = localStorage.getItem("tontineo_onboarding_seen");
+    const hasSeenGuide = localStorage.getItem("tontineo_platform_tour");
     if (!hasSeenGuide) {
       setIsOpen(true);
     }
@@ -78,26 +39,13 @@ export function OnboardingGuide() {
 
   const handleClose = () => {
     setIsOpen(false);
-    localStorage.setItem("tontineo_onboarding_seen", "true");
+    localStorage.setItem("tontineo_platform_tour", "true");
   };
 
-  const nextSlide = async () => {
+  const nextSlide = () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
-      // Final slide: save data if provided
-      if (whatsapp || momo) {
-        setIsSaving(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const updates: any = {};
-          if (whatsapp) updates.whatsapp = whatsapp;
-          if (momo) updates.momo_number = momo;
-          
-          await supabase.from("profiles").update(updates).eq("id", session.user.id);
-        }
-        setIsSaving(false);
-      }
       handleClose();
     }
   };
@@ -141,34 +89,24 @@ export function OnboardingGuide() {
             {slides[currentSlide].description}
           </p>
 
-          {slides[currentSlide].content && (
-            <div className="mb-8">
-              {slides[currentSlide].content}
-            </div>
-          )}
-
           {/* Controls */}
           <div className="flex gap-3 mt-8">
             {currentSlide > 0 && (
               <button 
                 onClick={prevSlide}
-                disabled={isSaving}
                 className="flex-1 py-3 bg-background border border-border text-textPrimary font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
               >
-                {t("btn_prev")}
+                Précédent
               </button>
             )}
             <button 
               onClick={nextSlide}
-              disabled={isSaving}
               className="flex-[2] py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2"
             >
-              {isSaving ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : currentSlide === slides.length - 1 ? (
-                t("btn_finish")
+              {currentSlide === slides.length - 1 ? (
+                "C'est parti !"
               ) : (
-                <>{t("btn_next")} <ChevronRight size={18} /></>
+                <>Suivant <ChevronRight size={18} /></>
               )}
             </button>
           </div>
