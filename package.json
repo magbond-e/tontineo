@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node fix-vercel.js && next build",
     "lint": "next lint",
     "db:push": "npx supabase db push",
     "fix": "node fix-vercel.js"
