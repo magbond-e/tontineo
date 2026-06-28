@@ -19,7 +19,7 @@ DECLARE
     v_member_name text;
 BEGIN
     -- Obtenir l'organisateur du cercle
-    SELECT created_by, name INTO v_organizer_id, v_circle_name
+    SELECT organizer_id, name INTO v_organizer_id, v_circle_name
     FROM public.circles
     WHERE id = NEW.circle_id;
 
@@ -28,14 +28,26 @@ BEGIN
     FROM public.profiles
     WHERE id = NEW.user_id;
 
-    IF NEW.status = 'pending' THEN
-        INSERT INTO public.notifications (user_id, type, title, message)
-        VALUES (
-            v_organizer_id,
-            'circle_invite',
-            'Nouvelle demande d''adhésion',
-            v_member_name || ' souhaite rejoindre votre cercle "' || v_circle_name || '".'
-        );
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.status = 'pending' THEN
+            INSERT INTO public.notifications (user_id, type, title, message)
+            VALUES (
+                v_organizer_id,
+                'circle_invite',
+                'Nouvelle demande d''adhésion',
+                v_member_name || ' souhaite rejoindre votre cercle "' || v_circle_name || '".'
+            );
+        END IF;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF NEW.status = 'pending' AND OLD.status != 'pending' THEN
+            INSERT INTO public.notifications (user_id, type, title, message)
+            VALUES (
+                v_organizer_id,
+                'circle_invite',
+                'Nouvelle demande d''adhésion',
+                v_member_name || ' souhaite rejoindre votre cercle "' || v_circle_name || '".'
+            );
+        END IF;
     END IF;
 
     RETURN NEW;
@@ -46,5 +58,4 @@ DROP TRIGGER IF EXISTS trigger_notify_organizer_on_join ON public.memberships;
 CREATE TRIGGER trigger_notify_organizer_on_join
 AFTER INSERT OR UPDATE OF status ON public.memberships
 FOR EACH ROW
-WHEN (NEW.status = 'pending' AND (TG_OP = 'INSERT' OR OLD.status != 'pending'))
 EXECUTE FUNCTION notify_organizer_on_join();
