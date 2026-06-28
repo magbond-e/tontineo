@@ -14,6 +14,7 @@ interface AuthContextType {
     whatsapp: string;
     city: string;
     phone: string;
+    isAdmin: boolean;
   } | null;
   refreshProfile: () => Promise<void>;
 }
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     whatsapp: string;
     city: string;
     phone: string;
+    isAdmin: boolean;
   } | null>(null);
   const supabase = createClient();
 
@@ -71,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, avatar_url, whatsapp, city, phone")
+        .select("full_name, avatar_url, whatsapp, city, phone, is_admin")
         .eq("id", user.id)
         .single();
       
@@ -83,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           whatsapp: data.whatsapp || user.user_metadata?.whatsapp || "",
           city: data.city || "",
           phone: data.phone || "",
+          isAdmin: data.is_admin || false,
         });
       } else if (error && error.code === 'PGRST116') {
         // No row found, try creating one
@@ -103,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           whatsapp: fallbackWhatsapp,
           city: "",
           phone: "",
+          isAdmin: false,
         });
       } else {
         setProfileData({
@@ -112,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           whatsapp: user.user_metadata?.whatsapp || "",
           city: "",
           phone: "",
+          isAdmin: false,
         });
       }
     } catch (err) {
@@ -145,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             whatsapp: updated.whatsapp || user.user_metadata?.whatsapp || "",
             city: updated.city || "",
             phone: updated.phone || "",
+            isAdmin: updated.is_admin || false,
           });
         }
       )
@@ -162,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     whatsapp: user.user_metadata?.whatsapp || "",
     city: "",
     phone: "",
+    isAdmin: false,
   } : null);
 
   const isLoading = isAuthLoading || (user !== null && isProfileLoading);

@@ -3,7 +3,7 @@
 import { Menu, Bell, X, LayoutDashboard, Users, Wallet, ShieldCheck, Settings, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -15,6 +15,7 @@ export function MobileHeader() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname();
   const { userProfile } = useAuth();
 
   const supabase = createClient();
@@ -240,23 +241,23 @@ export function MobileHeader() {
             </div>
             
             <nav className="flex-1 py-4 px-4 space-y-1 overflow-y-auto">
-              <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
-                <LayoutDashboard size={20} /> Dashboard
+              <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${(pathname === '/dashboard' || pathname === '/dashboard/') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
+                <LayoutDashboard size={20} className={(pathname === '/dashboard' || pathname === '/dashboard/') ? 'text-primary' : ''} /> Dashboard
               </Link>
-              <Link href="/dashboard/member" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
-                <Users size={20} /> Espace membre
+              <Link href="/dashboard/member" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${pathname.startsWith('/dashboard/member') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
+                <Users size={20} className={pathname.startsWith('/dashboard/member') ? 'text-primary' : ''} /> Espace membre
               </Link>
-              <Link href="/cercles" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
-                <Users size={20} /> Mes cercles
+              <Link href="/cercles" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${pathname.startsWith('/cercles') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
+                <Users size={20} className={pathname.startsWith('/cercles') ? 'text-primary' : ''} /> Mes cercles
               </Link>
-              <Link href="/portefeuille" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
-                <Wallet size={20} /> Portefeuille
+              <Link href="/portefeuille" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${pathname.startsWith('/portefeuille') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
+                <Wallet size={20} className={pathname.startsWith('/portefeuille') ? 'text-primary' : ''} /> Portefeuille
               </Link>
-              <Link href="/confiance" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
-                <ShieldCheck size={20} /> Score de confiance
+              <Link href="/confiance" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${pathname.startsWith('/confiance') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
+                <ShieldCheck size={20} className={pathname.startsWith('/confiance') ? 'text-primary' : ''} /> Score de confiance
               </Link>
-              <Link href="/parametres" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-textSecondary font-medium hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
-                <Settings size={20} /> Paramètres
+              <Link href="/parametres" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${pathname.startsWith('/parametres') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
+                <Settings size={20} className={pathname.startsWith('/parametres') ? 'text-primary' : ''} /> Paramètres
               </Link>
 
               <button 

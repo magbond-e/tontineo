@@ -97,21 +97,21 @@ export function Sidebar() {
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto overflow-x-hidden hide-scrollbar">
           <Link 
             href="/dashboard" 
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname === '/dashboard' ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${(pathname === '/dashboard' || pathname === '/dashboard/') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_dashboard")}
           >
             <div className="flex items-center justify-center w-6">
-              <LayoutDashboard size={20} className={pathname === '/dashboard' ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
+              <LayoutDashboard size={20} className={(pathname === '/dashboard' || pathname === '/dashboard/') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_dashboard")}</span>}
           </Link>
           <Link 
             href="/dashboard/member" 
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname === '/dashboard/member' ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname.startsWith('/dashboard/member') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
             title={t("nav_member_space")}
           >
             <div className="flex items-center justify-center w-6">
-              <Users size={20} className={pathname === '/dashboard/member' ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
+              <Users size={20} className={pathname.startsWith('/dashboard/member') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_member_space")}</span>}
           </Link>

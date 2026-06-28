@@ -411,7 +411,7 @@ export default function ParametresPage() {
               {/* Avatar */}
               <div className="flex flex-col items-center gap-3">
                 <label className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-border relative group cursor-pointer overflow-hidden">
-                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
+                  <input id="avatar-upload-input" type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -423,9 +423,9 @@ export default function ParametresPage() {
                     {isUploadingAvatar ? <Loader2 className="text-white animate-spin" size={24} /> : <Camera className="text-white" size={24} />}
                   </div>
                 </label>
-                <span className="text-xs font-bold text-primary cursor-pointer hover:underline">
+                <label htmlFor="avatar-upload-input" className="text-xs font-bold text-primary cursor-pointer hover:underline">
                   {isUploadingAvatar ? "Envoi en cours..." : t("change_photo")}
-                </span>
+                </label>
               </div>
               
               {/* Fields */}
@@ -770,84 +770,127 @@ export default function ParametresPage() {
         {activeTab === "abonnement" && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="text-center max-w-xl mx-auto mb-10">
-              <h2 className="text-2xl font-extrabold text-textPrimary mb-2">{t("plan_title")}</h2>
-              <p className="text-textSecondary text-sm">{t("plan_desc")}</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Free Plan */}
-              <div className="border border-border rounded-3xl p-6 bg-surface shadow-sm flex flex-col">
-                <h3 className="font-bold text-textPrimary text-lg mb-1">{t("essential")}</h3>
-                <div className="flex items-end gap-1 mb-6">
-                  <span className="text-3xl font-extrabold text-textPrimary font-mono">0</span>
-                  <span className="text-textSecondary text-sm font-medium pb-1">FCFA / mois</span>
-                </div>
-                <div className="space-y-3 mb-8 flex-1">
-                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> 1 Cercle actif</div>
-                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Jusqu'à 10 membres</div>
-                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Frais de retrait normaux (2%)</div>
-                </div>
-                <button className={`w-full py-2.5 font-bold rounded-xl transition-all ${userPlan === 'free' ? 'bg-gray-100 dark:bg-slate-800 text-textSecondary cursor-default' : 'bg-surface border border-border text-textPrimary hover:bg-gray-50'}`}>
-                  {userPlan === 'free' ? t("current_plan") : "Passer à Essential"}
-                </button>
-              </div>
-
-              {/* Pro Plan */}
-              <div className="border-2 border-primary rounded-3xl p-6 bg-surface shadow-md flex flex-col relative transform md:-translate-y-4">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
-                  {t("popular")}
-                </div>
-                <h3 className="font-bold text-primary text-lg mb-1">{t("pro_org")}</h3>
-                <div className="flex items-end gap-1 mb-6">
-                  <span className="text-3xl font-extrabold text-textPrimary font-mono">2500</span>
-                  <span className="text-textSecondary text-sm font-medium pb-1">FCFA / mois</span>
-                </div>
-                <div className="space-y-3 mb-8 flex-1">
-                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> 5 Cercles actifs</div>
-                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Jusqu'à 50 membres / cercle</div>
-                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Frais de retrait réduits (1.5%)</div>
-                  <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Relances auto WhatsApp & SMS</div>
-                </div>
-                <button className={`w-full py-2.5 font-bold rounded-xl shadow-md transition-all ${userPlan === 'pro' ? 'bg-primary/20 text-primary cursor-default' : 'bg-primary hover:bg-primary/90 text-white shadow-primary/20 hover:-translate-y-0.5'}`}>
-                  {userPlan === 'pro' ? t("current_plan") : t("upgrade_pro")}
-                </button>
-              </div>
-
-              {/* Business Plan */}
-              <div className="border border-border rounded-3xl p-6 bg-surface shadow-sm flex flex-col">
-                <h3 className="font-bold text-textPrimary text-lg mb-1">{t("business")}</h3>
-                <div className="flex items-end gap-1 mb-6">
-                  <span className="text-3xl font-extrabold text-textPrimary font-mono">10000</span>
-                  <span className="text-textSecondary text-sm font-medium pb-1">FCFA / mois</span>
-                </div>
-                <div className="space-y-3 mb-8 flex-1">
-                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Cercles et membres illimités</div>
-                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Frais de retrait mini (1%)</div>
-                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Tableau de bord avancé</div>
-                  <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Support prioritaire H24</div>
-                </div>
-                <button 
-                  onClick={() => handleUpgrade('business')}
-                  disabled={userPlan === 'business' || isSaving}
-                  className={`w-full py-2.5 font-bold rounded-xl transition-all ${userPlan === 'business' ? 'bg-gray-100 dark:bg-slate-800 text-textSecondary cursor-default' : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-border text-textPrimary'}`}
-                >
-                  {userPlan === 'business' ? t("current_plan") : t("upgrade_biz")}
-                </button>
+              <h2 className="text-2xl font-extrabold text-textPrimary mb-2">Gérer votre abonnement</h2>
+              <p className="text-textSecondary text-sm">Suivez l'utilisation de votre forfait et découvrez vos avantages.</p>
+              <div className="mt-4 inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-xs font-bold">
+                <AlertCircle size={14} />
+                Les abonnements sont prépayés (payés en début de cycle).
               </div>
             </div>
-            
-            {userPlan !== 'free' && (
-              <div className="mt-8 pt-8 border-t border-border flex flex-col items-center">
-                <p className="text-sm text-textSecondary mb-4">Vous souhaitez revenir au plan Essentiel ?</p>
-                <button 
-                  onClick={handleCancelPlan}
-                  disabled={isSaving}
-                  className="px-6 py-2.5 bg-danger/10 text-danger font-bold rounded-xl hover:bg-danger/20 transition-all text-sm"
-                >
-                  {isSaving ? "Traitement..." : "Résilier mon abonnement actuel"}
-                </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              
+              {/* Mon Plan Actuel */}
+              <div className="border border-border rounded-3xl p-6 bg-surface shadow-sm flex flex-col relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider mb-1 block">Plan Actuel</span>
+                    <h3 className="font-extrabold text-textPrimary text-2xl">
+                      {userPlan === 'free' ? t("essential") : userPlan === 'pro' ? t("pro_org") : t("business")}
+                    </h3>
+                  </div>
+                  <div className="p-3 bg-primary/10 text-primary rounded-2xl">
+                    <Crown size={24} />
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-textSecondary font-medium">Cercles actifs utilisés</span>
+                    <span className="font-bold text-textPrimary">
+                      {userPlan === 'free' ? '1 / 1' : userPlan === 'pro' ? '3 / 5' : 'Illimité'}
+                    </span>
+                  </div>
+                  {userPlan !== 'business' && (
+                    <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-primary h-2.5 rounded-full" style={{ width: userPlan === 'free' ? '100%' : '60%' }}></div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 mb-8 flex-1">
+                  <h4 className="text-sm font-bold text-textPrimary mb-3">Vos avantages :</h4>
+                  {userPlan === 'free' && (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> 1 Cercle actif</div>
+                      <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Jusqu'à 10 membres</div>
+                      <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Frais de retrait normaux (2%)</div>
+                    </>
+                  )}
+                  {userPlan === 'pro' && (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> 5 Cercles actifs</div>
+                      <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Jusqu'à 50 membres / cercle</div>
+                      <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Frais de retrait réduits (1.5%)</div>
+                      <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><Check size={16} className="text-primary" /> Relances auto WhatsApp & SMS</div>
+                    </>
+                  )}
+                  {userPlan === 'business' && (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Cercles et membres illimités</div>
+                      <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Frais de retrait mini (1%)</div>
+                      <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Tableau de bord avancé</div>
+                      <div className="flex items-center gap-2 text-sm text-textSecondary"><Check size={16} className="text-success" /> Support prioritaire H24</div>
+                    </>
+                  )}
+                </div>
+                
+                {userPlan !== 'free' && (
+                  <button 
+                    onClick={handleCancelPlan}
+                    disabled={isSaving}
+                    className="w-full py-3 bg-danger/10 hover:bg-danger/20 text-danger font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    Résilier l'abonnement
+                  </button>
+                )}
               </div>
-            )}
+
+              {/* Proposition de Plan Supérieur */}
+              {userPlan !== 'business' && (
+                <div className="border-2 border-primary rounded-3xl p-6 bg-surface shadow-md flex flex-col relative">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+                    Recommandé pour vous
+                  </div>
+                  <h3 className="font-bold text-primary text-lg mb-1">
+                    {userPlan === 'free' ? t("pro_org") : t("business")}
+                  </h3>
+                  <div className="flex items-end gap-1 mb-6">
+                    <span className="text-3xl font-extrabold text-textPrimary font-mono">
+                      {userPlan === 'free' ? '2500' : '10000'}
+                    </span>
+                    <span className="text-textSecondary text-sm font-medium pb-1">FCFA / mois</span>
+                  </div>
+                  
+                  <div className="space-y-3 mb-8 flex-1">
+                    <h4 className="text-sm font-bold text-textPrimary mb-3">Débloquez de nouvelles limites :</h4>
+                    {userPlan === 'free' ? (
+                      <>
+                        <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><ArrowUpRight size={16} className="text-primary" /> Passez à 5 Cercles actifs</div>
+                        <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><ArrowUpRight size={16} className="text-primary" /> Jusqu'à 50 membres / cercle</div>
+                        <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><ArrowUpRight size={16} className="text-primary" /> Relances SMS & WhatsApp</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><ArrowUpRight size={16} className="text-primary" /> Cercles et membres illimités</div>
+                        <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><ArrowUpRight size={16} className="text-primary" /> Frais de retrait mini (1%)</div>
+                        <div className="flex items-center gap-2 text-sm text-textPrimary font-medium"><ArrowUpRight size={16} className="text-primary" /> Support VIP H24</div>
+                      </>
+                    )}
+                  </div>
+                  
+                  <button 
+                    onClick={() => handleUpgrade(userPlan === 'free' ? 'pro' : 'business')}
+                    disabled={isSaving}
+                    className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-md shadow-primary/20 transition-all hover:-translate-y-0.5"
+                  >
+                    {isSaving ? <Loader2 size={18} className="animate-spin mx-auto" /> : `Passer à ${userPlan === 'free' ? 'Pro' : 'Business'}`}
+                  </button>
+                </div>
+              )}
+
+            </div>
           </div>
         )}
 
