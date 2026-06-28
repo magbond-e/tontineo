@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
     "lint": "next lint",
-    "db:push": "npx supabase db push"
+    "db:push": "npx supabase db push",
+    "fix": "node fix-vercel.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.1",
