@@ -42,9 +42,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS trigger_notify_organizer_on_join ON public.circle_members;
+DROP TRIGGER IF EXISTS trigger_notify_organizer_on_join ON public.memberships;
 CREATE TRIGGER trigger_notify_organizer_on_join
-AFTER INSERT OR UPDATE OF status ON public.circle_members
+AFTER INSERT OR UPDATE OF status ON public.memberships
 FOR EACH ROW
 WHEN (NEW.status = 'pending' AND (TG_OP = 'INSERT' OR OLD.status != 'pending'))
 EXECUTE FUNCTION notify_organizer_on_join();
