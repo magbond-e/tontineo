@@ -58,6 +58,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
       .single();
       
     if (existing) {
+      setIsJoining(false);
       router.push(`/cercles/${inviteData.id}`);
       return;
     }
@@ -92,8 +93,10 @@ export default function JoinPage({ params }: { params: { token: string } }) {
         });
       }
       
+      setIsJoining(false);
       router.push(`/cercles/${inviteData.id}?joined=pending`);
     }
+
   };
 
   if (isLoading) {

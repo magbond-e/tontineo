@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 
@@ -39,16 +39,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phone: string;
     isAdmin: boolean;
   } | null>(null);
-  const supabase = createClient();
+  // Stabiliser l'instance Supabase — CRITIQUE : ne pas créer en body du composant
+  // sinon supabase.auth change de référence à chaque render → boucle infinie dans useEffect
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     // Get initial session
+    // Get initial session — MUST use getUser() (server-verified) not getSession() (local cache)
+    // getSession() never contacts Supabase so banned users keep access until JWT expires.
+    // getUser() always verifies against Supabase server → detects bans immediately.
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error || !user) {
+          // Token invalid, banned, or expired — clear local session immediately
+          await supabase.auth.signOut();
+          setUser(null);
+        } else {
+          setUser(user);
+        }
       } catch (error) {
-        console.error("Error fetching session:", error);
+        console.error("Error verifying session:", error);
+        setUser(null);
       } finally {
         setIsAuthLoading(false);
       }
@@ -56,16 +68,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    // Listen for auth changes (sign in, sign out, token refresh, ban, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+        // Re-verify with server on refresh to detect bans applied after login
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error || !user) {
+          await supabase.auth.signOut();
+          setUser(null);
+        } else {
+          setUser(user);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      } else {
+        setUser(session?.user ?? null);
+      }
       setIsAuthLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase.auth]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;

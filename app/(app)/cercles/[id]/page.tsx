@@ -23,6 +23,18 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   const [successMessage, setSuccessMessage] = useState("");
   const [hasPaidCurrentCycle, setHasPaidCurrentCycle] = useState(false);
   const [hasFiredWebhook, setHasFiredWebhook] = useState(false);
+  // Custom confirm modal (replaces window.confirm)
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState({ title: "", description: "", confirmLabel: "Confirmer", isDanger: false });
+  const [confirmActionFn, setConfirmActionFn] = useState<(() => void) | null>(null);
+
+  const openConfirm = (title: string, description: string, onConfirm: () => void, confirmLabel = "Confirmer", isDanger = false) => {
+    setConfirmModalConfig({ title, description, confirmLabel, isDanger });
+    setConfirmActionFn(() => onConfirm);
+    setShowConfirmModal(true);
+  };
+  const closeConfirm = () => { setShowConfirmModal(false); setConfirmActionFn(null); };
+  const executeConfirm = () => { closeConfirm(); if (confirmActionFn) confirmActionFn(); };
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [showCharte, setShowCharte] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -43,28 +55,33 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
   const handleDraw = async () => {
     if (!activeCycle) return;
-    const confirmDraw = window.confirm(`Voulez-vous déclencher le tirage de ${cercle.potCollected.toLocaleString('fr-FR')} FCFA ?`);
-    if (!confirmDraw) return;
-    
-    setIsPaying(true);
-    try {
-      const res = await fetch('/api/circles/draw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ circle_id: cercle.id, cycle_id: activeCycle.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSuccessMessage(`🎉 Le tirage a été effectué avec succès !\n\n${data.winner} a remporté ${data.amount.toLocaleString('fr-FR')} FCFA.\nLe paiement FedaPay a été initié.`);
-        setShowSuccessModal(true);
-      } else {
-        alert(data.error || "Erreur lors du tirage.");
-      }
-    } catch (e) {
-      alert("Erreur inattendue.");
-    } finally {
-      setIsPaying(false);
-    }
+    openConfirm(
+      "Déclencher le tirage ?",
+      `Vous êtes sur le point de déclencher le tirage du pot de ${cercle.potCollected.toLocaleString('fr-FR')} FCFA. Cette action est irréversible.`,
+      async () => {
+        setIsPaying(true);
+        try {
+          const res = await fetch('/api/circles/draw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ circle_id: cercle.id, cycle_id: activeCycle.id })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setSuccessMessage(`🎉 Le tirage a été effectué avec succès !\n\n${data.winner} a remporté ${data.amount.toLocaleString('fr-FR')} FCFA.\nLe paiement FedaPay a été initié.`);
+            setShowSuccessModal(true);
+          } else {
+            openConfirm("Erreur du tirage", data.error || "Erreur lors du tirage.", () => {}, "OK", true);
+          }
+        } catch {
+          openConfirm("Erreur", "Une erreur inattendue est survenue lors du tirage.", () => {}, "OK", true);
+        } finally {
+          setIsPaying(false);
+        }
+      },
+      "Lancer le tirage 🎲",
+      false
+    );
   };
 
   const handleStartCircle = async () => {
@@ -128,7 +145,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
   const handlePayment = async () => {
     if (!activeCycle) {
-      alert("La tontine n'a pas de cycle actif pour le moment.");
+      openConfirm("Pas de cycle actif", "La tontine n'a pas de cycle actif pour le moment.", () => {}, "OK", false);
       return;
     }
     setIsPaying(true);
@@ -148,49 +165,48 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error || "Erreur d'initialisation du paiement.");
+        openConfirm("Erreur de paiement", data.error || "Erreur d'initialisation du paiement.", () => {}, "OK", true);
       }
-    } catch (error) {
-      console.error(error);
-      alert("Une erreur inattendue est survenue");
+    } catch {
+      openConfirm("Erreur", "Une erreur inattendue est survenue.", () => {}, "OK", true);
     } finally {
       setIsPaying(false);
     }
   };
 
   const handleWalletPayment = async () => {
-    if (!activeCycle) {
-      alert("La tontine n'a pas de cycle actif pour le moment.");
-      return;
-    }
-    const confirmPay = window.confirm(`Voulez-vous payer ${cercle.amount.toLocaleString('fr-FR')} FCFA depuis votre portefeuille Tontineo ?`);
-    if (!confirmPay) return;
-    
-    setIsPaying(true);
-    try {
-      const response = await fetch('/api/payments/wallet-pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          circle_id: cercle.id,
-          cycle_id: activeCycle.id,
-          amount: cercle.amount
-        })
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        setSuccessMessage(`🎉 Paiement de ${cercle.amount} FCFA validé depuis votre portefeuille !`);
-        setShowSuccessModal(true);
-      } else {
-        alert(data.error || "Erreur lors du paiement par portefeuille.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Une erreur inattendue est survenue");
-    } finally {
-      setIsPaying(false);
-    }
+    if (!activeCycle) return;
+    openConfirm(
+      "Payer depuis le portefeuille ?",
+      `Voulez-vous payer ${cercle.amount.toLocaleString('fr-FR')} FCFA depuis votre portefeuille Tontineo ?`,
+      async () => {
+        setIsPaying(true);
+        try {
+          const response = await fetch('/api/payments/wallet-pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              circle_id: cercle.id,
+              cycle_id: activeCycle.id,
+              amount: cercle.amount
+            })
+          });
+          const data = await response.json();
+          if (data.success) {
+            setSuccessMessage(`🎉 Paiement de ${cercle.amount.toLocaleString('fr-FR')} FCFA validé depuis votre portefeuille !`);
+            setShowSuccessModal(true);
+          } else {
+            openConfirm("Erreur de paiement", data.error || "Erreur lors du paiement par portefeuille.", () => {}, "OK", true);
+          }
+        } catch {
+          openConfirm("Erreur", "Une erreur inattendue est survenue.", () => {}, "OK", true);
+        } finally {
+          setIsPaying(false);
+        }
+      },
+      "Payer maintenant",
+      false
+    );
   };
 
   // Nouveau useEffect pour simuler le webhook FedaPay (Mode local uniquement)
@@ -231,24 +247,30 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   }, [user, activeCycle, cercle, hasFiredWebhook]);
 
   const handleRemoveMember = async (userId: string, userName: string) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir exclure ${userName} de ce cercle ?`)) return;
-    
-    try {
-      const res = await fetch('/api/circles/members/remove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ circle_id: cercle.id, user_id_to_remove: userId })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMembers(members.filter(m => m.user_id !== userId));
-        setCercle((prev: any) => ({ ...prev, currentMembers: prev.currentMembers - 1 }));
-      } else {
-        alert(data.error || "Erreur lors de l'exclusion");
-      }
-    } catch (e) {
-      alert("Erreur inattendue");
-    }
+    openConfirm(
+      `Exclure ${userName} ?`,
+      `Êtes-vous sûr de vouloir exclure ${userName} de ce cercle ? Cette action est définitive.`,
+      async () => {
+        try {
+          const res = await fetch('/api/circles/members/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ circle_id: cercle.id, user_id_to_remove: userId })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setMembers(members.filter(m => m.user_id !== userId));
+            setCercle((prev: any) => ({ ...prev, currentMembers: prev.currentMembers - 1 }));
+          } else {
+            openConfirm("Erreur", data.error || "Erreur lors de l'exclusion", () => {}, "OK", true);
+          }
+        } catch {
+          openConfirm("Erreur", "Erreur inattendue", () => {}, "OK", true);
+        }
+      },
+      "Exclure le membre",
+      true // danger
+    );
   };
 
   const handleUpdateCircle = async () => {
@@ -263,10 +285,10 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
         setCercle((prev: any) => ({ ...prev, status: newStatus, description: newDescription }));
         setShowSettingsModal(false);
       } else {
-        alert("Erreur lors de la mise à jour");
+        openConfirm("Erreur", "Erreur lors de la mise à jour du cercle.", () => {}, "OK", true);
       }
-    } catch (e) {
-      alert("Erreur inattendue");
+    } catch {
+      openConfirm("Erreur", "Une erreur inattendue est survenue.", () => {}, "OK", true);
     } finally {
       setIsUpdatingCircle(false);
     }
@@ -283,10 +305,10 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
       if (data.success) {
         setMembers(members.map(m => m.user_id === userId ? { ...m, isPending: false } : m));
       } else {
-        alert(data.error || "Erreur lors de l'approbation");
+        openConfirm("Erreur d'approbation", data.error || "Erreur lors de l'approbation", () => {}, "OK", true);
       }
-    } catch (e) {
-      alert("Erreur inattendue");
+    } catch {
+      openConfirm("Erreur", "Une erreur inattendue est survenue.", () => {}, "OK", true);
     }
   };
 
@@ -375,8 +397,13 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
           
         if (paymentsData) {
           cyclePayments = paymentsData;
-          // We can recalculate pot based on payments or stick to the stored one
-          // calculatedPot = paymentsData.reduce((sum, p) => sum + (p.amount || 0), 0);
+          // Recalcul dynamique du pot basé sur les paiements réels
+          calculatedPot = paymentsData.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+          // Vérifier si l'utilisateur courant a déjà payé ce cycle
+          const currentUserPayment = paymentsData.find(p => p.user_id === user.id);
+          if (currentUserPayment) {
+            setHasPaidCurrentCycle(true);
+          }
         }
       }
 
@@ -413,8 +440,12 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
           };
         });
         
-        // Trier pour mettre ceux qui ont payé en premier
-        mappedMembers.sort((a, b) => a.status === 'Payé' ? -1 : 1);
+        // Trier pour mettre ceux qui ont payé en premier (sort stable)
+        mappedMembers.sort((a, b) => {
+          if (a.status === 'Payé' && b.status !== 'Payé') return -1;
+          if (a.status !== 'Payé' && b.status === 'Payé') return 1;
+          return 0;
+        });
         
         setMembers(mappedMembers);
       }
@@ -484,6 +515,32 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   return (
     <div className="max-w-[1200px] mx-auto space-y-6 md:space-y-8 min-h-[80vh]">
       
+      {/* Custom Confirm Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
+          <div className="bg-surface border border-border rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 ${confirmModalConfig.isDanger ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary'}`}>
+              <AlertCircle size={28} />
+            </div>
+            <h3 className="text-lg font-extrabold text-textPrimary text-center mb-2">{confirmModalConfig.title}</h3>
+            <p className="text-textSecondary text-sm text-center mb-7 leading-relaxed">{confirmModalConfig.description}</p>
+            <div className="flex gap-3">
+              {confirmActionFn && (
+                <button onClick={closeConfirm} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-textPrimary font-bold rounded-xl transition-colors text-sm">
+                  Annuler
+                </button>
+              )}
+              <button
+                onClick={executeConfirm}
+                className={`flex-1 py-2.5 font-bold rounded-xl transition-all text-white text-sm shadow-md ${confirmModalConfig.isDanger ? 'bg-danger hover:bg-danger/90 shadow-danger/20' : 'bg-primary hover:bg-primary/90 shadow-primary/20'}`}
+              >
+                {confirmModalConfig.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -603,7 +660,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
           
           {/* Pot Actuel (Donut Chart) */}
           <div className="bg-surface border border-border rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-sm flex flex-col items-center text-center">
-            <h2 className="text-lg font-bold text-textPrimary w-full text-left mb-6">Pot du Cycle 4</h2>
+            <h2 className="text-lg font-bold text-textPrimary w-full text-left mb-6">Pot du Cycle {activeCycle?.cycle_number ?? '—'}</h2>
             
             <div className="relative flex items-center justify-center mb-6">
               <svg className="transform -rotate-90 w-40 h-40">

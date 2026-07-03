@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Users, Coins, Percent, Bell, ArrowUpRight, ArrowDownRight, CheckCircle2, AlertCircle, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -16,7 +16,7 @@ export default function DashboardPage() {
   const notifRef = useRef<HTMLDivElement>(null);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [statsData, setStatsData] = useState({
     totalCotise: 0,

@@ -2,7 +2,7 @@
 
 import { Menu, Bell, X, LayoutDashboard, Users, Wallet, ShieldCheck, Settings, LogOut } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,7 @@ export function MobileHeader() {
   const pathname = usePathname();
   const { userProfile } = useAuth();
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Load and listen for notifications in real-time
   useEffect(() => {
@@ -201,11 +201,19 @@ export function MobileHeader() {
                 {notifications.some(n => n.unread) && (
                   <div 
                     onClick={markAllAsRead}
-                    className="p-3 text-center bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer text-xs font-bold text-primary"
+                    className="px-3 py-3 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer text-xs font-bold text-primary text-center border-b border-border"
                   >
                     Marquer tout comme lu
                   </div>
                 )}
+                <Link
+                  href="/notifications"
+                  onClick={() => setShowNotifications(false)}
+                  className="flex items-center justify-center gap-1.5 p-3 bg-gray-50 dark:bg-slate-800 hover:bg-primaryLight transition-colors text-xs font-bold text-primary"
+                >
+                  Voir toutes les notifications
+                  <span className="text-xs">&rarr;</span>
+                </Link>
               </div>
             )}
           </div>
@@ -258,6 +266,24 @@ export function MobileHeader() {
               </Link>
               <Link href="/parametres" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${pathname.startsWith('/parametres') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
                 <Settings size={20} className={pathname.startsWith('/parametres') ? 'text-primary' : ''} /> Paramètres
+              </Link>
+              <Link href="/notifications" onClick={() => setIsMenuOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${pathname.startsWith('/notifications') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
+                <div className="relative">
+                  <Bell size={20} className={pathname.startsWith('/notifications') ? 'text-primary' : ''} />
+                  {notifications.some(n => n.unread) && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary text-white text-[8px] font-bold flex items-center justify-center">
+                      {notifications.filter(n => n.unread).length > 9 ? '9+' : notifications.filter(n => n.unread).length}
+                    </span>
+                  )}
+                </div>
+                <span className="flex items-center gap-2">
+                  Notifications
+                  {notifications.some(n => n.unread) && (
+                    <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-white text-[10px] font-bold">
+                      {notifications.filter(n => n.unread).length > 9 ? '9+' : notifications.filter(n => n.unread).length}
+                    </span>
+                  )}
+                </span>
               </Link>
 
               <button 

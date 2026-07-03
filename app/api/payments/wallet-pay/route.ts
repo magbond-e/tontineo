@@ -79,7 +79,6 @@ export async function POST(req: Request) {
         user_id: user.id,
         amount,
         status: 'completed',
-        payment_method: 'wallet',
         completed_at: new Date().toISOString()
       })
       .select('id')
@@ -87,6 +86,12 @@ export async function POST(req: Request) {
 
     if (payErr) {
       console.error('Erreur insertion paiement:', payErr);
+      // Rollback wallet debit if payment record failed
+      await supabaseAdmin
+        .from('profiles')
+        .update({ wallet_balance: Number(wallet.wallet_balance) })
+        .eq('id', user.id);
+      return NextResponse.json({ error: 'Erreur lors de l\'enregistrement du paiement.' }, { status: 500 });
     }
 
     // 6. Mettre à jour le pot_amount du cycle
@@ -101,6 +106,20 @@ export async function POST(req: Request) {
         .from('cycles')
         .update({ pot_amount: Number(cycle.pot_amount) + Number(amount) })
         .eq('id', cycle_id);
+    }
+
+    // 7. Mettre à jour pot_collected du cercle (pour la barre de progression)
+    const { data: currentCircle } = await supabaseAdmin
+      .from('circles')
+      .select('pot_collected')
+      .eq('id', circle_id)
+      .single();
+
+    if (currentCircle) {
+      await supabaseAdmin
+        .from('circles')
+        .update({ pot_collected: Number(currentCircle.pot_collected || 0) + Number(amount) })
+        .eq('id', circle_id);
     }
 
     return NextResponse.json({ 

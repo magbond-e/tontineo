@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ShieldCheck, Award, TrendingUp, CheckCircle2, AlertCircle, Info, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -8,7 +8,7 @@ import { createClient } from "@/utils/supabase/client";
 
 export default function ConfiancePage() {
   const { t } = useLanguage();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [score, setScore] = useState(0);
   const [targetScore, setTargetScore] = useState(0);
   const [history, setHistory] = useState<any[]>([]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, ArrowRightLeft, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,14 +24,15 @@ export default function RetraitPage() {
     const checkSecurity = async () => {
       if (!user) return;
       const { data } = await supabase.from('profiles').select('has_pin, is_locked, is_deactivated, pin_blocked_until').eq('id', user.id).single();
-      if (data) {
-        if (!data.has_pin) {
-          setNoPin(true);
+        if (data) {
+          if (!data.has_pin) {
+            setNoPin(true);
+          }
+          const pinBlockedUntil = data.pin_blocked_until ? new Date(data.pin_blocked_until) : null;
+          if (data.is_deactivated || data.is_locked || (pinBlockedUntil && pinBlockedUntil > new Date())) {
+            setIsLocked(true);
+          }
         }
-        if (data.is_deactivated || data.is_locked || (data.pin_blocked_until && new Date(data.pin_blocked_until) > new Date())) {
-          setIsLocked(true);
-        }
-      }
       setIsInitializing(false);
     };
     checkSecurity();
@@ -43,12 +44,13 @@ export default function RetraitPage() {
     setErrorMsg("");
 
     try {
-      const { data: profile } = await supabase.from('profiles').select('wallet_balance, is_locked, has_pin').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('wallet_balance, is_locked, is_deactivated, pin_blocked_until, has_pin').eq('id', user.id).single();
       
       if (!profile) throw new Error("Profil introuvable");
       
       // 1. Vérifier si le compte est gelé
-      if (profile.is_locked || profile.is_deactivated || (profile.pin_blocked_until && new Date(profile.pin_blocked_until) > new Date())) {
+      const pinBlockedUntil = profile.pin_blocked_until ? new Date(profile.pin_blocked_until) : null;
+      if (profile.is_locked || profile.is_deactivated || (pinBlockedUntil && pinBlockedUntil > new Date())) {
         setErrorMsg("Votre compte est temporairement ou définitivement bloqué. Veuillez patienter ou contacter le support.");
         setIsLoading(false);
         return;
@@ -189,17 +191,6 @@ export default function RetraitPage() {
               {isLoading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRightLeft size={20} />}
               {isLoading ? "Vérification..." : "Valider le retrait"}
             </button>
-          </>
-        )}
-
-        <button 
-          onClick={handleRetrait}
-          disabled={isLoading || !amount || Number(amount) <= 0 || !pin}
-          className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-        >
-          {isLoading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRightLeft size={20} />}
-          {isLoading ? "Vérification..." : "Valider le retrait"}
-        </button>
       </div>
     </div>
   );

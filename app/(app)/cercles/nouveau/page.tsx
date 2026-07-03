@@ -32,24 +32,50 @@ export default function CreateCerclePage() {
   const supabase = createClient();
   const router = useRouter();
 
-  const handleNext = () => setStep(s => Math.min(3, s + 1));
-  const handlePrev = () => setStep(s => Math.max(1, s - 1));
+  const handleNext = () => {
+    setErrorMsg(null);
+    if (step === 1 && !formData.name.trim()) {
+      setErrorMsg("Le nom du cercle est obligatoire.");
+      return;
+    }
+    if (step === 2 && (Number(formData.amount) <= 0 || Number(formData.maxMembers) < 2)) {
+      setErrorMsg("Le montant doit être positif et le cercle doit avoir au moins 2 membres.");
+      return;
+    }
+    setStep(s => Math.min(3, s + 1));
+  };
+  const handlePrev = () => { setErrorMsg(null); setStep(s => Math.max(1, s - 1)); };
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleCreate = async () => {
     if (!user) return;
+    if (!formData.name.trim()) {
+      setErrorMsg("Le nom du cercle est obligatoire.");
+      return;
+    }
     setIsSubmitting(true);
     setErrorMsg(null);
-    
-    // Check limits
-    const { count } = await supabase.from('circles').select('*', { count: 'exact', head: true }).eq('organizer_id', user.id);
-    if (count && count >= 2) {
-       setErrorMsg("Vous avez atteint la limite de cercles pour le forfait Essentiel. Veuillez passer au plan Pro.");
-       setIsSubmitting(false);
-       return;
+
+    // Fetch current plan and circle count simultaneously
+    const [{ data: profilePlan }, { count }] = await Promise.all([
+      supabase.from('profiles').select('current_plan').eq('id', user.id).single(),
+      supabase.from('circles').select('*', { count: 'exact', head: true }).eq('organizer_id', user.id)
+    ]);
+
+    const plan = profilePlan?.current_plan || 'free';
+    const planLimits: Record<string, number> = { free: 2, pro: 5, business: Infinity };
+    const limit = planLimits[plan] ?? 2;
+    const planLabels: Record<string, string> = { free: 'Essentiel', pro: 'Pro', business: 'Business' };
+
+    if (count !== null && count >= limit) {
+      const nextPlan = plan === 'free' ? 'Pro' : 'Business';
+      setErrorMsg(`Vous avez atteint la limite de ${limit} cercle(s) pour le forfait ${planLabels[plan]}. Passez au plan ${nextPlan} pour en créer davantage.`);
+      setIsSubmitting(false);
+      return;
     }
+
 
     const potTarget = parseInt(formData.amount || "0") * parseInt(formData.maxMembers || "0");
     

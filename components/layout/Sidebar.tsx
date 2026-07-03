@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Users, Wallet, ShieldCheck, Settings, LogOut, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { LayoutDashboard, Users, Wallet, ShieldCheck, Settings, LogOut, ChevronLeft, ChevronRight, AlertCircle, Bell } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -17,7 +17,30 @@ export function Sidebar() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { userProfile } = useAuth();
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('unread', true);
+      setUnreadCount(count ?? 0);
+    };
+
+    fetchUnread();
+
+    const channel = supabase
+      .channel('sidebar_notif_badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, fetchUnread)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -154,6 +177,30 @@ export function Sidebar() {
               <Settings size={20} className={pathname.startsWith('/parametres') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
             </div>
             {!isCollapsed && <span>{t("nav_settings")}</span>}
+          </Link>
+          <Link 
+            href="/notifications" 
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all group ${pathname.startsWith('/notifications') ? 'bg-primary/10 text-primary' : 'text-textSecondary hover:text-textPrimary hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+            title="Notifications"
+          >
+            <div className="relative flex items-center justify-center w-6">
+              <Bell size={20} className={pathname.startsWith('/notifications') ? 'text-primary' : 'group-hover:text-primary transition-colors'} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
+            {!isCollapsed && (
+              <span className="flex items-center gap-2">
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-white text-[10px] font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </span>
+            )}
           </Link>
 
           <div className="mt-8">

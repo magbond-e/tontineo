@@ -13,6 +13,7 @@ function RechargeContent() {
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     if (searchParams.get("payment") === "success") {
@@ -25,7 +26,12 @@ function RechargeContent() {
 
   const handleInitRecharge = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0 || !user) return;
+    if (Number(amount) < 100) {
+      setErrorMsg("Le montant minimum de recharge est de 100 FCFA.");
+      return;
+    }
     setIsLoading(true);
+    setErrorMsg("");
     
     try {
       const response = await fetch('/api/payments/initiate', {
@@ -40,7 +46,7 @@ function RechargeContent() {
       const result = await response.json();
 
       if (!response.ok) {
-        alert(result.error || "Une erreur est survenue lors de l'initialisation.");
+        setErrorMsg(result.error || "Une erreur est survenue lors de l'initialisation.");
         setIsLoading(false);
         return;
       }
@@ -50,6 +56,7 @@ function RechargeContent() {
       }
     } catch (error) {
       console.error(error);
+      setErrorMsg("Erreur réseau. Veuillez réessayer.");
       setIsLoading(false);
     }
   };
@@ -92,6 +99,7 @@ function RechargeContent() {
             />
             <span className="absolute right-5 top-1/2 -translate-y-1/2 text-textSecondary font-bold">FCFA</span>
           </div>
+          <p className="text-[11px] text-textSecondary mt-1.5">Montant minimum : <span className="font-bold">100 FCFA</span></p>
         </div>
 
         <button 
@@ -102,6 +110,13 @@ function RechargeContent() {
           {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
           {isLoading ? "Redirection vers FedaPay..." : "Payer via Mobile Money"}
         </button>
+
+        {errorMsg && (
+          <div className="mt-4 flex items-center gap-2 bg-danger/5 border border-danger/20 text-danger text-sm font-bold p-3 rounded-xl animate-in slide-in-from-top-2 duration-200">
+            <span className="shrink-0">&#9888;</span>
+            {errorMsg}
+          </div>
+        )}
       </div>
     </div>
   );

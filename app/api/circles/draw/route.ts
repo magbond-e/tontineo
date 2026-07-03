@@ -178,6 +178,7 @@ export async function POST(req: Request) {
       amount: potAmount,
       type: "deposit",
       status: "completed",
+      description: `Gain de tontine — cercle "${circle.name}" (cycle n°${activeCycle.cycle_number})`,
       completed_at: new Date().toISOString()
     });
 
@@ -188,6 +189,7 @@ export async function POST(req: Request) {
         amount: potAmount,
         type: "withdrawal",
         status: "completed",
+        description: `Reversement automatique FedaPay — cercle "${circle.name}"`,
         completed_at: new Date().toISOString()
       });
     }
