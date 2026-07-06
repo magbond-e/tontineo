@@ -1,13 +1,22 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { User, ShieldCheck, Bell, Crown, Settings, UploadCloud, CheckCircle2, AlertCircle, Camera, FileText, Check, Smartphone, Mail, MessageSquare, Globe, Loader2, Save, Lock, ArrowUpRight, TrendingUp, Zap, Users, Infinity } from "lucide-react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { User, ShieldCheck, Bell, Crown, Settings, UploadCloud, CheckCircle2, AlertCircle, Camera, FileText, Check, Smartphone, Mail, MessageSquare, Globe, Loader2, Save, Lock, ArrowUpRight, TrendingUp, Zap, Users, Infinity, CalendarClock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/utils/supabase/client";
 import { isValidPhoneNumber } from "react-phone-number-input";
 
 export default function ParametresPage() {
+  return (
+    <Suspense fallback={null}>
+      <ParametresPageContent />
+    </Suspense>
+  );
+}
+
+function ParametresPageContent() {
   const { lang, setLang, t } = useLanguage();
   const { user, userProfile, refreshProfile } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -42,8 +51,11 @@ export default function ParametresPage() {
 
   // Plan logic
   const [userPlan, setUserPlan] = useState("free");
+  const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
   const [cerclesCount, setCerclesCount] = useState(0);
   const [membresCount, setMembresCount] = useState(0);
+  const [planSuccessToast, setPlanSuccessToast] = useState(""); // toast après retour FedaPay
+  const searchParams = useSearchParams();
 
   // Security State
   const [pinCode, setPinCode] = useState("");
@@ -76,7 +88,7 @@ export default function ParametresPage() {
       if (user?.id) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, city, phone, whatsapp, current_plan, wa_enabled, wa_reminders_enabled, wa_draws_enabled, wa_invites_enabled, sms_enabled, email_enabled, has_pin, kyc_status, avatar_url')
+          .select('full_name, city, phone, whatsapp, current_plan, plan_expires_at, wa_enabled, wa_reminders_enabled, wa_draws_enabled, wa_invites_enabled, sms_enabled, email_enabled, has_pin, kyc_status, avatar_url')
           .eq('id', user.id)
           .single();
         if (profile) {
@@ -89,6 +101,7 @@ export default function ParametresPage() {
             setWaInput(profile.whatsapp);
           }
           if (profile.current_plan) setUserPlan(profile.current_plan);
+          if (profile.plan_expires_at) setPlanExpiresAt(profile.plan_expires_at);
           if (profile.wa_enabled !== null) setWaEnabled(profile.wa_enabled);
           if (profile.wa_reminders_enabled !== null) setWaReminders(profile.wa_reminders_enabled);
           if (profile.wa_draws_enabled !== null) setWaDraws(profile.wa_draws_enabled);
@@ -102,6 +115,20 @@ export default function ParametresPage() {
       }
     };
     fetchProfile();
+
+    // Détecter retour FedaPay après abonnement payé
+    const planStatus = searchParams.get('plan_status');
+    const planParam = searchParams.get('plan');
+    if (planStatus === 'success' && planParam) {
+      const label = planParam === 'pro' ? 'Pro' : 'Business';
+      setPlanSuccessToast(`🎉 Abonnement ${label} activé avec succès !`);
+      setActiveTab('abonnement');
+      // Nettoyer l'URL sans recharger
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '/parametres?tab=abonnement');
+      }
+      setTimeout(() => setPlanSuccessToast(''), 6000);
+    }
 
     // Fetch real quota usage
     const fetchQuotas = async () => {
@@ -333,17 +360,28 @@ export default function ParametresPage() {
     setLang(newLang);
   };
 
-  const handleUpgrade = async (plan: 'premium' | 'business') => {
-    if (userPlan === plan) return;
+  // handleUpgrade — vrai paiement FedaPay
+  const handleUpgrade = async (plan: 'pro' | 'business') => {
+    if (isSaving) return;
     setIsSaving(true);
-    setTimeout(async () => {
-      console.log("[DEV] Paiement FedaPay simulé pour l'abonnement " + plan.toUpperCase());
-      if (user?.id) {
-        await supabase.from('profiles').update({ current_plan: plan }).eq('id', user.id);
-        setUserPlan(plan);
+    setSaveError("");
+    try {
+      const response = await fetch('/api/subscriptions/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan })
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setSaveError(data.error || "Erreur lors de l'initialisation du paiement.");
+        setIsSaving(false);
       }
+    } catch {
+      setSaveError("Erreur réseau. Veuillez réessayer.");
       setIsSaving(false);
-    }, 1500);
+    }
   };
 
   const [showCancelPlanModal, setShowCancelPlanModal] = useState(false);
@@ -351,13 +389,19 @@ export default function ParametresPage() {
   const handleCancelPlan = async () => {
     setShowCancelPlanModal(false);
     setIsSaving(true);
-    setTimeout(async () => {
+    try {
       if (user?.id) {
-        await supabase.from('profiles').update({ current_plan: 'free' }).eq('id', user.id);
+        await supabase.from('profiles').update({
+          current_plan: 'free',
+          plan_expires_at: null,
+          plan_renewed_at: null
+        }).eq('id', user.id);
         setUserPlan('free');
+        setPlanExpiresAt(null);
       }
+    } finally {
       setIsSaving(false);
-    }, 1000);
+    }
   };
 
   if (!mounted) return null;
@@ -843,9 +887,9 @@ export default function ParametresPage() {
         {/* --- ONGLET ABONNEMENT --- */}
         {activeTab === "abonnement" && (() => {
           const PLANS = {
-            free:     { label: "Essentiel",  price: "Gratuit",       maxCercles: 2,  maxMembers: 10,  fee: "6%", color: "text-textSecondary", badge: "bg-gray-100 text-textSecondary" },
-            pro:      { label: "Pro",        price: "2 500 FCFA/mois", maxCercles: 5,  maxMembers: 50,  fee: "5%", color: "text-primary",      badge: "bg-primary/10 text-primary" },
-            business: { label: "Business",  price: "10 000 FCFA/mois",maxCercles: 999,maxMembers: 200, fee: "4%", color: "text-amber-600",    badge: "bg-amber-100 text-amber-700" },
+            free:     { label: "Essentiel",  price: "Gratuit",         amount: 0,    maxCercles: 2,   maxMembers: 10,  fee: "6%", color: "text-textSecondary", badge: "bg-gray-100 text-textSecondary" },
+            pro:      { label: "Pro",        price: "2 000 FCFA/mois",  amount: 2000, maxCercles: 5,   maxMembers: 50,  fee: "5%", color: "text-primary",      badge: "bg-primary/10 text-primary" },
+            business: { label: "Business",  price: "5 000 FCFA/mois",  amount: 5000, maxCercles: 999, maxMembers: 200, fee: "4%", color: "text-amber-600",    badge: "bg-amber-100 text-amber-700" },
           };
           const plan = PLANS[userPlan as keyof typeof PLANS] || PLANS.free;
           const cerclesMax  = plan.maxCercles;
@@ -857,7 +901,23 @@ export default function ParametresPage() {
 
           return (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
-              
+
+              {/* Toast succès abonnement */}
+              {planSuccessToast && (
+                <div className="flex items-center gap-3 bg-success/10 border border-success/30 text-success font-bold px-5 py-4 rounded-2xl animate-in slide-in-from-top-3 duration-300">
+                  <CheckCircle2 size={20} className="shrink-0" />
+                  <span>{planSuccessToast}</span>
+                </div>
+              )}
+
+              {/* Erreur paiement */}
+              {saveError && (
+                <div className="flex items-center gap-3 bg-danger/10 border border-danger/20 text-danger font-bold px-5 py-4 rounded-2xl">
+                  <AlertCircle size={20} className="shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
+
               {/* Header */}
               <div>
                 <h2 className="text-2xl font-extrabold text-textPrimary tracking-tight">Mon abonnement</h2>
@@ -890,6 +950,28 @@ export default function ParametresPage() {
                     {userPlan !== 'free' && <div className="flex items-center gap-2 text-textSecondary"><CheckCircle2 size={14} className="text-success shrink-0" />Relances SMS & WhatsApp</div>}
                     {userPlan === 'business' && <div className="flex items-center gap-2 text-textSecondary"><CheckCircle2 size={14} className="text-success shrink-0" />Support prioritaire H24</div>}
                   </div>
+
+                  {/* Date d'expiration réelle */}
+                  {planExpiresAt && userPlan !== 'free' && (() => {
+                    const expiry = new Date(planExpiresAt);
+                    const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    const isExpiringSoon = daysLeft <= 7;
+                    const isExpired = daysLeft <= 0;
+                    return (
+                      <div className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-xl ${
+                        isExpired ? 'bg-danger/10 text-danger border border-danger/20' :
+                        isExpiringSoon ? 'bg-warning/10 text-warning border border-warning/20' :
+                        'bg-primary/5 text-primary border border-primary/10'
+                      }`}>
+                        <CalendarClock size={14} className="shrink-0" />
+                        {isExpired
+                          ? `Abonnement expiré le ${expiry.toLocaleDateString('fr-FR')}`
+                          : `Actif jusqu'au ${expiry.toLocaleDateString('fr-FR')} (${daysLeft}j)`
+                        }
+                      </div>
+                    );
+                  })()}
+
                   {userPlan !== 'free' && (
                     <button onClick={() => setShowCancelPlanModal(true)} disabled={isSaving} className="mt-2 text-xs text-danger/70 hover:text-danger font-bold underline underline-offset-2 transition-colors text-left">
                       Résilier l'abonnement
@@ -1006,7 +1088,10 @@ export default function ParametresPage() {
                         {isSaving ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpRight size={16} />}
                         Passer au {nextPlan.label}
                       </button>
-                      <p className="text-[10px] text-textSecondary text-center">Sans engagement. Résiliation à tout moment.</p>
+                      <p className="text-[10px] text-textSecondary text-center">
+                        {nextPlan.price} · Paiement Mobile Money via FedaPay
+                      </p>
+                      <p className="text-[10px] text-textSecondary text-center">Sans engagement · Résiliable à tout moment</p>
                     </div>
                   </div>
                 </div>

@@ -86,7 +86,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'Recharge de portefeuille traitée avec succès' });
     }
 
-    // CAS 2: Cotisation de cercle de tontine standard
+    // CAS 2: Abonnement (Pro / Business)
+    if (type === 'subscription') {
+      const plan = metadata.plan;
+
+      if (!plan || !['pro', 'business'].includes(plan)) {
+        console.error('Webhook subscription: plan invalide dans les métadonnées:', metadata);
+        return NextResponse.json({ error: 'Plan invalide' }, { status: 400 });
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // +30 jours
+
+      // 1. Activer l'abonnement dans profiles
+      await supabaseAdmin.from('profiles').update({
+        current_plan: plan,
+        plan_expires_at: expiresAt.toISOString(),
+        plan_renewed_at: now.toISOString(),
+      }).eq('id', user_id);
+
+      // 2. Mettre à jour la subscription row pending → active
+      await supabaseAdmin.from('subscriptions').update({
+        status: 'active',
+        started_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+      }).eq('fedapay_tx_id', verifiedTx.id.toString());
+
+      // 3. Notification
+      const planLabel = plan === 'pro' ? 'Pro' : 'Business';
+      await supabaseAdmin.from('notifications').insert({
+        user_id,
+        title: `🎉 Abonnement ${planLabel} activé !`,
+        description: `Votre plan ${planLabel} est actif jusqu'au ${expiresAt.toLocaleDateString('fr-FR')}. Profitez de toutes vos fonctionnalités premium.`,
+        unread: true,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Abonnement ${planLabel} activé jusqu'au ${expiresAt.toLocaleDateString('fr-FR')}`,
+      });
+    }
+
+    // CAS 3: Cotisation de cercle de tontine standard
     if (!circle_id || !cycle_id) {
       console.error('Webhook reçu pour cotisation mais circle_id ou cycle_id manquant:', metadata);
       return NextResponse.json({ error: 'Missing circle_id or cycle_id' }, { status: 400 });
