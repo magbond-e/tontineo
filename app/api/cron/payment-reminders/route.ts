@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 // Cette route peut être appelée par un service de cron externe (ex: Vercel Cron, GitHub Actions)
 export async function GET(req: Request) {
   try {
