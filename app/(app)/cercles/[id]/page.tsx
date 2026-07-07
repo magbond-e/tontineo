@@ -41,6 +41,7 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
   const [isUpdatingCircle, setIsUpdatingCircle] = useState(false);
   const [newStatus, setNewStatus] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [requiresAuth, setRequiresAuth] = useState(false);
 
   const { user } = useAuth();
   const supabase = createClient();
@@ -314,7 +315,11 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
 
   useEffect(() => {
     const fetchCercleDetails = async () => {
-      if (!user) return;
+      if (!user) {
+        setRequiresAuth(true);
+        setIsLoading(false);
+        return;
+      }
       
       const { data: circleData, error: circleError } = await supabase
         .from('circles')
@@ -490,6 +495,19 @@ export default function CercleDetailsPage({ params }: { params: { id: string } }
             <div className="bg-surface border border-border rounded-2xl p-6 h-48 bg-gray-100 dark:bg-gray-800"></div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (requiresAuth) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <AlertCircle className="w-12 h-12 text-warning" />
+        <h2 className="text-xl font-bold text-textPrimary">Session expirée</h2>
+        <p className="text-textSecondary">Connectez-vous pour voir les détails de ce cercle.</p>
+        <Link href="/login" className="px-6 py-3 bg-primary text-white font-bold rounded-xl">
+          Se connecter
+        </Link>
       </div>
     );
   }

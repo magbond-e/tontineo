@@ -10,6 +10,7 @@ export default function MemberDashboardPage() {
   const { t } = useLanguage();
   const supabase = createClient();
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [activeTontines, setActiveTontines] = useState<any[]>([]);
   const [calendarMembers, setCalendarMembers] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
@@ -20,7 +21,11 @@ export default function MemberDashboardPage() {
     const fetchMemberData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
 
         // Fetch User Profile
         const { data: profile } = await supabase
@@ -145,6 +150,18 @@ export default function MemberDashboardPage() {
             <div className="bg-surface border border-border rounded-2xl p-6 h-48 bg-gray-100 dark:bg-gray-800"></div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-[1200px] mx-auto min-h-[50vh] flex flex-col items-center justify-center text-center space-y-4">
+        <p className="text-lg font-bold text-textPrimary">Session expirée</p>
+        <p className="text-sm text-textSecondary">Connectez-vous pour accéder à votre espace membre.</p>
+        <Link href="/login" className="px-6 py-3 bg-primary text-white font-bold rounded-xl">
+          Se connecter
+        </Link>
       </div>
     );
   }

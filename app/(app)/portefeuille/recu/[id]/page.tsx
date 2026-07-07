@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { ArrowLeft, Printer, Download } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 
 export default function ReceiptPage() {
   const { id } = useParams();
@@ -36,7 +35,23 @@ export default function ReceiptPage() {
   }, [id, supabase]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen animate-pulse">Chargement du reçu...</div>;
+    return (
+      <div className="max-w-3xl mx-auto space-y-6 animate-pulse">
+        <div className="flex items-center justify-between mb-6">
+          <div className="w-24 h-8 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+          <div className="w-48 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+        </div>
+        <div className="bg-white border border-gray-200 p-10 rounded-2xl shadow-sm space-y-6">
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+          <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+          <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+          <div className="flex items-center justify-center gap-2 text-textSecondary">
+            <Loader2 className="animate-spin" size={18} />
+            <span>Chargement du reçu...</span>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!payment) {

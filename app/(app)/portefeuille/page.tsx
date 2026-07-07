@@ -19,7 +19,10 @@ export default function PortefeuillePage() {
 
   useEffect(() => {
     const fetchWallet = async () => {
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
       try {
         const { data: profile } = await supabase
           .from('profiles')
@@ -109,6 +112,18 @@ export default function PortefeuillePage() {
             <div className="w-full sm:w-auto flex-1 h-16 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-[800px] mx-auto min-h-[50vh] flex flex-col items-center justify-center text-center space-y-4">
+        <p className="text-lg font-bold text-textPrimary">Session expirée</p>
+        <p className="text-sm text-textSecondary">Connectez-vous pour accéder à votre portefeuille.</p>
+        <Link href="/login" className="px-6 py-3 bg-primary text-white font-bold rounded-xl">
+          Se connecter
+        </Link>
       </div>
     );
   }
