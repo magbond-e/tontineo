@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { User, ShieldCheck, Bell, Crown, Settings, UploadCloud, CheckCircle2, AlertCircle, Camera, FileText, Check, Smartphone, Mail, MessageSquare, Globe, Loader2, Save, Lock, ArrowUpRight, TrendingUp, Zap, Users, Infinity, CalendarClock } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -32,6 +32,7 @@ function ParametresPageContent() {
   const [momo, setMomo] = useState("");
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isConfirmingPlan, setIsConfirmingPlan] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -56,6 +57,7 @@ function ParametresPageContent() {
   const [membresCount, setMembresCount] = useState(0);
   const [planSuccessToast, setPlanSuccessToast] = useState(""); // toast après retour FedaPay
   const searchParams = useSearchParams();
+  const confirmedTxRef = useRef<string | null>(null);
 
   // Security State
   const [pinCode, setPinCode] = useState("");
@@ -128,6 +130,41 @@ function ParametresPageContent() {
         window.history.replaceState(null, '', '/parametres?tab=abonnement');
       }
       setTimeout(() => setPlanSuccessToast(''), 6000);
+    }
+
+    // Confirmation serveur au retour FedaPay (évite les cas webhook en retard/raté)
+    const paymentStatus = searchParams.get('status');
+    const txId = searchParams.get('id');
+    if (paymentStatus === 'approved' && txId && user?.id && confirmedTxRef.current !== txId) {
+      confirmedTxRef.current = txId;
+      setIsConfirmingPlan(true);
+      fetch('/api/subscriptions/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: txId }),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Confirmation abonnement impossible');
+          }
+
+          if (data.plan) setUserPlan(data.plan);
+          if (data.expires_at) setPlanExpiresAt(data.expires_at);
+          const label = data.plan === 'pro' ? 'Pro' : data.plan === 'business' ? 'Business' : 'Premium';
+          setPlanSuccessToast(`🎉 Abonnement ${label} activé avec succès !`);
+
+          if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', '/parametres?tab=abonnement');
+          }
+        })
+        .catch((err) => {
+          setSaveError(err.message || "La confirmation du paiement a échoué.");
+        })
+        .finally(() => {
+          setIsConfirmingPlan(false);
+          setTimeout(() => setPlanSuccessToast(''), 6000);
+        });
     }
 
     // Fetch real quota usage
@@ -907,6 +944,13 @@ function ParametresPageContent() {
                 <div className="flex items-center gap-3 bg-success/10 border border-success/30 text-success font-bold px-5 py-4 rounded-2xl animate-in slide-in-from-top-3 duration-300">
                   <CheckCircle2 size={20} className="shrink-0" />
                   <span>{planSuccessToast}</span>
+                </div>
+              )}
+
+              {isConfirmingPlan && (
+                <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 text-primary font-bold px-5 py-4 rounded-2xl">
+                  <Loader2 size={20} className="shrink-0 animate-spin" />
+                  <span>Confirmation de votre paiement en cours...</span>
                 </div>
               )}
 
