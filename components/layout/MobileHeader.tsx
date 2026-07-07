@@ -6,6 +6,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { performLogout } from "@/utils/auth/logout";
 
 export function MobileHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -102,10 +103,12 @@ export function MobileHeader() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    await supabase.auth.signOut();
-    localStorage.removeItem("tontineo_profile");
-    router.push("/login");
-    router.refresh();
+    try {
+      await performLogout(supabase);
+    } catch {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+    }
   };
 
   return (

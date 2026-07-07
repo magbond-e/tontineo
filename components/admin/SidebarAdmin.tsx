@@ -6,6 +6,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { performLogout } from "@/utils/auth/logout";
 
 export function SidebarAdmin() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -18,10 +19,11 @@ export function SidebarAdmin() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    await supabase.auth.signOut();
-    localStorage.removeItem("tontineo_profile");
-    router.push("/login");
-    router.refresh();
+    try {
+      await performLogout(supabase);
+    } catch {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
