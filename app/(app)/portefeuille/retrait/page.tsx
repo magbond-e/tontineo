@@ -191,6 +191,8 @@ export default function RetraitPage() {
               {isLoading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRightLeft size={20} />}
               {isLoading ? "Vérification..." : "Valider le retrait"}
             </button>
+          </>
+        )}
       </div>
     </div>
   );
