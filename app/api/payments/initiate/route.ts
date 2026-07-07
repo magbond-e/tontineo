@@ -10,7 +10,7 @@ function resolveAppUrl(req: Request) {
   const forwardedHost = req.headers.get('x-forwarded-host');
   const host = forwardedHost || req.headers.get('host');
   if (host) {
-    const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+    const protocol = forwardedProto || (process.env.VERCEL ? 'https' : 'http');
     return `${protocol}://${host}`;
   }
 
