@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server';
 import { FedaPay, Transaction } from 'fedapay';
 import { createClient } from '@/utils/supabase/server';
 
+function resolveAppUrl(req: Request) {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl && envUrl.trim().length > 0) return envUrl.replace(/\/$/, '');
+
+  const forwardedProto = req.headers.get('x-forwarded-proto');
+  const forwardedHost = req.headers.get('x-forwarded-host');
+  const host = forwardedHost || req.headers.get('host');
+  if (host) {
+    const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+    return `${protocol}://${host}`;
+  }
+
+  return 'https://tontineo-agence.vercel.app';
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = createClient();
@@ -27,7 +42,7 @@ export async function POST(req: Request) {
     FedaPay.setApiKey(apiKey);
     FedaPay.setEnvironment(apiKey.startsWith('sk_live') ? 'live' : 'sandbox');
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const appUrl = resolveAppUrl(req);
     
     // Configuration dynamique selon le type de paiement
     const isRecharge = type === 'wallet_recharge';
