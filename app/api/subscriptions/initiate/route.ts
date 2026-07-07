@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       .eq('id', user.id)
       .single();
 
-    if (profile?.current_plan === plan) {
+    if (profile && profile.current_plan === plan) {
       // Déjà sur ce plan — vérifier s'il est expiré ou non
       const isExpired = profile.plan_expires_at
         ? new Date(profile.plan_expires_at) < new Date()
