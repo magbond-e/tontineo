@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2 } from "lucide-react";
+import { useMemo } from "react";
 
 export function PlanGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [isChecking, setIsChecking] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     const checkPlan = async () => {
@@ -18,11 +18,29 @@ export function PlanGuard({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const { data, error } = await supabase
+        const planQuery = supabase
           .from("profiles")
           .select("current_plan, trial_ends_at")
           .eq("id", user.id)
           .single();
+
+        // Fail-open quickly if network/db hangs to avoid blocking user navigation.
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 8000)
+        );
+        const result = await Promise.race([planQuery, timeoutPromise]);
+
+        if (result === null) {
+          console.warn("Plan check timed out, allowing access.");
+          return;
+        }
+
+        const { data, error } = result;
+
+        if (error) {
+          console.error("Erreur lors de la vérification du plan:", error);
+          return;
+        }
 
         if (data) {
           // If on free plan but trial is still active, we could upgrade them visually or just let them be free.
